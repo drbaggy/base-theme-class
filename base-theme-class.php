@@ -67,6 +67,7 @@ const DEFAULT_DEFN = [
 class BaseThemeClass {
   protected $template_directory;
   protected $template_directory_uri;
+
   protected $defn;
   protected $templates;
   protected $preprocessors;
@@ -74,6 +75,7 @@ class BaseThemeClass {
   protected $debug;
   protected $array_methods;
   protected $scalar_methods;
+
   public function __construct( $defn ) {
     $this->defn = $defn;
     $this->initialize_templates()
@@ -92,33 +94,9 @@ class BaseThemeClass {
          ->add_my_scripts_and_stylesheets()
          ->register_custom_parameters()
          ->register_short_codes()
+         // The following is experimental - creating a new sub-editor role [[ please ignore at the moment ]]
          ->register_new_role()
          ;
-  }
-  function add_roles_on_plugin_activation() {
-    add_role( 'content_dditor', 'Content editor', [ 'read' => true, 'edit_posts' => true, 'edit_owned_posts' => true ] );
-  }
-
-  function content_editor_filter( ) {
-    global $wp_query;
-    if( ! is_admin() ) { 
-      return;
-    }
-    error_log( "FIlter" );
-    $user = wp_get_current_user();
-    if( ! in_array( 'content_editor', (array) $user->roles ) ) {
-    //The user has the "author" role
-      return;
-    }
-    $wp_query->set( 'meta_key', 'country' );
-    $wp_query->set( 'meta_value', 'GB' );
-    error_log( "CONTENT EDITOR" );
-  }
-
-  function register_new_role() {
-    register_activation_hook( __FILE__, [ $this, 'add_roles_on_plugin_activation' ] );
-    add_action( 'pre_get_posts', [ $this, 'content_editor_filter' ] );
-    return $his;
   }
 
   function initialize_templates_directory() {
@@ -126,6 +104,12 @@ class BaseThemeClass {
     $this->template_directory_uri = get_template_directory_uri();
     return $this;
   }
+
+//----------------------------------------------------------------------
+// Add CSS/javascript files from definition list...
+// If they start with http or / then they are treated as absolute
+// o/w they are treated relative to the template directory...
+//----------------------------------------------------------------------
 
   function add_my_scripts_and_stylesheets() {
     add_action( 'wp_enqueue_scripts',         array( $this, 'enqueue_scripts'  ) );
@@ -242,9 +226,8 @@ class BaseThemeClass {
     return preg_replace( '/(width|height)=["\']\d*["\']\s?/', "", $html );
   }
 
-//----------------------------------------------------------------------
-// Set up custom types from configuration hash {TYPES}
-//----------------------------------------------------------------------
+// Support functions - to convert between human readable and
+// computer readable "variable" names - and to pluralize names
 
   function hr( $string ) {
   // Make human readable version of variable name
@@ -263,16 +246,6 @@ class BaseThemeClass {
     return $string.'s';
   }
 
-  function create_custom_types() {
-// Name, icon='', plural='', code=''
-    if( isset( $this->defn[ 'TYPES' ] ) ) {
-      foreach( $this->defn[ 'TYPES' ] as $def ) {
-        $this->create_custom_type( $def );
-      }
-    }
-    return $this;
-  }
-
   function define_type( $name, $fields, $extra=[] ) {
     if(! function_exists("register_field_group") ) {
       return  $this->show_error( 'ACF plugin not installed!' );
@@ -287,21 +260,24 @@ class BaseThemeClass {
     // We do some magic now to the name to get the type...
     // Set the location - unless over-ridden in extra...
     $location = [ 'param' => 'post_type', 'operator' => '==', 'value' => $type ];
+
     if( isset( $extra['location'] ) ) {
-      $t = $extra['location'];
+      $t        = $extra['location'];
       $location = [ 'param' => $t[0], 'operator' => $t[1], 'value' => $t[2] ];
     }
     // Create the basic definition
-    $defn = [ 'id' => 'acf_'.$type, 'title' => $name,
-      'fields' => [],
-      'location' => [[$location]],
-      'options' => [ 'position' => 'normal', 'layout' => 'no_box', 'hide_on_screen' => [ 0 => 'the_content' ] ],
-      'menu_order' => 0,
+    $defn = [
+      'id'              => 'acf_'.$type,
+      'title'           => $name,
+      'fields'          => [],
+      'location'        => [[$location]],
+      'options'         => [ 'position' => 'normal', 'layout' => 'no_box', 'hide_on_screen' => [ 0 => 'the_content' ] ],
+      'menu_order'      => 0,
       'label_placement' => isset( $extra['labels'] ) ? $extra['labels'] : 'left'
     ];
     // Allow a prefix for type so we don't have issues of field name clash
     // across multiple types....
-    $prefix = isset( $extra['prefix'] ) ? $extra['prefix'].'_' : '';
+    $prefix         = isset( $extra['prefix'] ) ? $extra['prefix'].'_' : '';
     $defn['fields'] = $this->munge_fields( $prefix, $fields, $type );
     // Finally register the acf group to generate the admin interface!
     register_field_group( $defn );
@@ -312,45 +288,45 @@ class BaseThemeClass {
   // Add a taxonomy to the give classes.. similar to add type - works
   // out plurals, codes, labels etc from given name
   // then attaches to the appropriate object types....
-    $plural = isset( $extra['plural'] ) ? $extra['plural'] : $this->pl( $name );
-    $code   = isset( $extra['code']   ) ? $extra['code']   : $this->cr( $name );
-    $lc     = strtolower($name);
-    $new_item  = __("New $lc");
-    $edit_item = __("Edit $lc");
-    $view_item = __("View $lc");
-    $view_items = __('View '.strtolower($plural) );
-    $all_items  = __('All '.strtolower($plural) );
+    $plural     = isset( $extra['plural'] ) ? $extra['plural'] : $this->pl( $name );
+    $code       = isset( $extra['code']   ) ? $extra['code']   : $this->cr( $name );
+    $lc         = strtolower($name);
+    $new_item   = __("New $lc");
+    $edit_item  = __("Edit $lc");
     register_taxonomy( $code, $object_types, [
       'query_var'         => true,
       'show_ui'           => true,
       'show_admin_column' => true,
-      'rewrite' => array( 'slug' => $code ),
-      'heirarchical' => isset( $extra['hierarchical'] ) ? $extra['hierarchical'] : false,
-      'labels'       => [
-        'name'             => __($plural),
-        'singular_name'    => __($name),
-        'edit_item'        => $edit_item,
-        'update_item'      => $edit_item,
-        'add_new_item'     => $new_item,
-        'menu_name'        => __($plural),
+      'rewrite'           => array( 'slug' => $code ),
+      'heirarchical'      => isset( $extra['hierarchical'] ) ? $extra['hierarchical'] : false,
+      'labels'            => [
+        'name'              => __($plural),
+        'singular_name'     => __($name),
+        'edit_item'         => $edit_item,
+        'update_item'       => $edit_item,
+        'add_new_item'      => $new_item,
+        'menu_name'         => __($plural),
       ]
     ] );
     return $this;
   }
 
+// Nasty re-cursive code - munges fields + add sub_fields/layouts....
   function munge_fields( $prefix, $fields, $type ) {
     // and add fields to it... note we don't have complex fields here!!!
     $munged = [];
     foreach( $fields as $field => $def ) {
-      $code = $this->cr( $field );
+      $code = $this->cr( $field ); // Auto generate code for field, along with name etc...
       $me = array_merge(
         ['key'=>'field_'.$prefix.$code, 'label' => $field, 'name' => $code, 'layout' => 'row' ],
-        $def);
+        // Can over-ride any of these in $def as arrays are merged!
+        $def
+      );
       if( isset( $def['sub_fields'] ) ){
         $me['sub_fields'] = $this->munge_fields( $prefix.$code.'_', $def['sub_fields'], $type );
       }
       if( isset( $def['layouts'] ) ){
-        $me['layouts'] = $this->munge_fields( $prefix.$code.'_', $def['layouts'], $type );
+        $me[ 'layouts' ] = $this->munge_fields(  $prefix.$code.'_', $def['layouts'], $type );
       }
       $munged[]=$me;
     }
@@ -358,16 +334,21 @@ class BaseThemeClass {
   }
 
   function create_custom_type( $def ) {
-    $name   = $def['name'];
-    $icon   = isset( $def['icon']   ) ? $def['icon']   : 'admin-page';
-    $plural = isset( $def['plural'] ) ? $def['plural'] : $this->pl( $name );
-    $code   = isset( $def['code']   ) ? $def['code']   : $this->cr( $name );
-    $lc     = strtolower($name);
-    $new_item  = __("New $lc");
-    $edit_item = __("Edit $lc");
-    $view_item = __("View $lc");
+    // Take name and generate plural, computer readable versions etc...
+    $name       = $def['name'];
+    $plural     = isset( $def['plural'] ) ? $def['plural'] : $this->pl( $name );
+    $code       = isset( $def['code']   ) ? $def['code']   : $this->cr( $name );
+    $lc         = strtolower($name);
+
+    $new_item   = __("New $lc");
+    $edit_item  = __("Edit $lc");
+    $view_item  = __("View $lc");
     $view_items = __('View '.strtolower($plural) );
     $all_items  = __('All '.strtolower($plural) );
+
+    // Define icon this is a dashicon icon....
+    $icon       = isset( $def['icon']   ) ? $def['icon']   : 'admin-page';
+
     register_post_type( $code, [
       'public'       => true,
       'has_archive'  => true,
@@ -908,7 +889,7 @@ class BaseThemeClass {
     for($i=0;$i<strlen($string);$i++) {
       $x = htmlentities( $string[$i] );
       if( $x === $string[$i] && ( in_array( $x, $alwaysEncode ) || !mt_rand(0,3) ) ) {
-        $x = mt_rand(0,1) ? '&#'.ord($x).';' : '&#x'.dechex(ord($x)).';';
+        $x = '&#'.sprintf( ['%d','x%x','x%X'][mt_rand(0,2)], ord($x) ).';';
       }
       $res.=$x;
     }
@@ -921,7 +902,7 @@ class BaseThemeClass {
     for($i=0;$i<strlen($string);$i++){
       $x = urlencode( $string[$i] );
       if( $x === $string[$i] && ( in_array( $x, $alwaysEncode ) || !mt_rand(0,3) ) ) {
-        $x = sprintf( mt_rand(0,1) ? '%%%02X' : '%%%02x', ord($x) );
+        $x = '%'.sprintf( ['%02X','%02x'][mt_rand(0,1)], ord($x) );
       }
       $res.=$x;
     }
@@ -934,10 +915,39 @@ class BaseThemeClass {
       // Trim empty tags -- a, span, p, div, h[1-6], ...
       list($munged,$html_str) = array(
         $html_str,
-        preg_replace('/<(li|ol|ul|a|span|p|div|h\d)[^>]*>\s*<\/\1>/','',$html_str)
+        preg_replace( '/<(li|ol|ul|a|span|p|div|h\d)[^>]*>\s*<\/\1>/', '', $html_str )
       );
     }
-    return preg_replace( '/\s*[\r\n]+\s*[\r\n]/',"\n", $html_str ); // Remove blank lines
+    return preg_replace( '/\s*[\r\n]+\s*[\r\n]/', "\n", $html_str ); // Remove blank lines
   }
+
+// The following functions are looking at defining a new role which would
+// allow assigning editors to individual pages
+  function add_roles_on_plugin_activation() {
+    add_role( 'content_dditor', 'Content editor', [ 'read' => true, 'edit_posts' => true, 'edit_owned_posts' => true ] );
+  }
+
+  function content_editor_filter( ) {
+    global $wp_query;
+    if( ! is_admin() ) { 
+      return;
+    }
+    error_log( "FIlter" );
+    $user = wp_get_current_user();
+    if( ! in_array( 'content_editor', (array) $user->roles ) ) {
+    //The user has the "author" role
+      return;
+    }
+    $wp_query->set( 'meta_key', 'country' );
+    $wp_query->set( 'meta_value', 'GB' );
+    error_log( "CONTENT EDITOR" );
+  }
+
+  function register_new_role() {
+    register_activation_hook( __FILE__, [ $this, 'add_roles_on_plugin_activation' ] );
+    add_action( 'pre_get_posts', [ $this, 'content_editor_filter' ] );
+    return $his;
+  }
+
 }
 
