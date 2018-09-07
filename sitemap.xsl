@@ -15,14 +15,10 @@
 <body>
 <header>
 <h1>XML Sitemap</h1>
-  <p>This is a XML Sitemap which is supposed to be processed by search engines.</p>
 </header>
 <main>
 <xsl:apply-templates></xsl:apply-templates>
 </main>
-<footer>
-  Generated with <a rel="external nofollow" href="http://www.arnebrachhold.de/redir/sitemap-home/" title="Google (XML) Sitemap Generator Plugin for WordPress">Google (XML) Sitemaps Generator Plugin for WordPress</a> by <a rel="external nofollow" href="http://www.arnebrachhold.de/">Arne Brachhold</a>.
-</footer>
   </body>
 </html>
   </xsl:template>

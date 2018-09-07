@@ -252,7 +252,7 @@ class BaseThemeClass {
     }
     // type is page or post or "not_custom" isn't set in extra
     // we will generate a custome type...
-    $type = $this->cr( $name );
+    $type = array_key_exists( 'code', $extra ) ? $extra['code'] : $this->cr( $name );
 
     if( $type !== 'page' & $type !== 'post' && !isset( $extra['not_custom'] ) ) {
       $this->create_custom_type( array_merge( [ 'name' => $name ] , $extra ) );
@@ -566,7 +566,7 @@ class BaseThemeClass {
     $this->postprocessors = [];
     $this->debug          = false;
     $this->array_methods = [
-      'size'      => function( $s ) { return sizeof( $s ); },
+      'size'      => function( $t_data ) { return sizeof( $t_data ); },
       'json'      => function( $t_data, $extra ) {
         return HTMLentities( json_encode( $t_data ) );
       },
