@@ -726,6 +726,13 @@ class BaseThemeClass {
     return $this;
   }
 
+  public function error_dump( $obj ) {
+    foreach( preg_split( '/[\r\n]+/', print_r( $obj, 1 ) ) as $_ ) {
+      error_log( $_ );
+    }
+    return '';
+  }
+
   protected function show_error( $message ) {
     if( $this->debug ) {
       return '<div class="error">'.HTMLentities( $message ).'</div>';
