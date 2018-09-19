@@ -570,6 +570,9 @@ class BaseThemeClass {
       'json'      => function( $t_data, $extra ) {
         return HTMLentities( json_encode( $t_data ) );
       },
+      'dump'      => function( $t_data, $extra ) {
+        return '<pre style="height:400px;width:100%;border:1px solid red; background-color: #fee; color: #000; font-weight: bold;font-size: 10px; overflow: auto">'.HTMLentities(print_r($t_data,1)).'</pre>';
+      },
       'templates' => function( $t_data, $extra ) {
         if( is_array( $t_data ) ) {
           return implode( '', array_map(function($row) use ($extra) {
@@ -584,7 +587,7 @@ class BaseThemeClass {
     ];
     $this->scalar_methods = [
       'raw'       => function( $s ) { return $s; },
-      'date'      => function( $s ) { return date_format( date_create( $s ), 'F jS Y' ); },
+      'date'      => function( $s ) { return $s ? date_format( date_create( $s ), 'F jS Y' ) : '-'; },
       'enc'       => 'rawurlencode',
       'rand_enc'  => function( $s ) { return $this->random_url_encode( $s ); },
       'integer'   => 'intval',
@@ -724,6 +727,11 @@ class BaseThemeClass {
   public function debug_off() {
     $this->debug = false;
     return $this;
+  }
+
+  public function pre_dump( $obj ) {
+    printf( '<pre>%s</pre>', HTMLentities( print_r( $obj, 1 ) ) );
+    return '';
   }
 
   public function error_dump( $obj ) {
@@ -953,7 +961,7 @@ class BaseThemeClass {
   function register_new_role() {
     register_activation_hook( __FILE__, [ $this, 'add_roles_on_plugin_activation' ] );
     add_action( 'pre_get_posts', [ $this, 'content_editor_filter' ] );
-    return $his;
+    return $this;
   }
 
 }
