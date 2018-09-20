@@ -1,0 +1,18 @@
+.collapsed li { display: none }
+.collapsed li.selected { display: block }
+li.no-entries { color: #999 }
+.multi-block h6::before { display: block; content: '-'; float: right; background-color: #cfc; font-weight: bold; width: 1em }
+.collapsed h6::before { content: '+'; background-color: #fcc;  }
+
+/* .... */
+
+.catalog-entry h6 a { display: block }
+.catalog-entry h6 a:nth-of-type(2) { font-size: 80% }
+.cat_info p { display: block; padding: 1em; width: 25%; float: left }
+.cat_info p strong { display:block; font-size: 89%; text-transform: uppercase }
+.cat_info p span   { display:block; font-size: 80% }
+.cat_info p:last-of-type { width: auto; float: none }
+.twocol dt { width:30%; float: left;  font-size: 80%; clear: both; }
+.twocol dd { width:68%; float: right; font-size: 80% }
+dl.twocol:after { display: none; height: 1px; clear: both; content: '.' }
+.cat_desc { clear: both }

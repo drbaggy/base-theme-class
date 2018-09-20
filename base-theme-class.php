@@ -121,9 +121,9 @@ class BaseThemeClass {
     if( isset( $this->defn[ 'STYLES' ] ) ) {
       foreach( $this->defn[ 'STYLES' ] as $key => $name ) {
         if( preg_match( '/^(https?:\/)?\//', $name ) ){
-          wp_enqueue_script( $key, $name,array(),null,false);
+          wp_enqueue_style( $key, $name,array(),null,false);
         } else {
-          wp_enqueue_script( $key, $this->template_directory_uri.'/'.$name,array(),null,false);
+          wp_enqueue_style( $key, $this->template_directory_uri.'/'.$name,array(),null,false);
         }
       }
     }

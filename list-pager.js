@@ -47,7 +47,7 @@
 
   <!-- List items... -->
   <div class="list-item" data-letter="#" data-type="[&quot;11&quot;,&quot;9&quot;]" data-country="GB">....
-  
+
   </div>
 
   <div><p class="list-none">THere are no matches for your search criteria</p></div>
@@ -73,11 +73,15 @@
 
   // Add handlers to the filters - they just have to be in the same container as the list
   // - and only one such list in the container...
-  $('.list-filter').on('change keyup', function () {
+  $('.multi-block').on('click','h6',function() {
+    $(this).closest('div').toggleClass('collapsed');
+  });
+  $('.list-filter, .multi-filter').on('change keyup', function () {
     var $self       = $(this),
         new_filters = {},
         $list       = $self.closest('.list-container'),
         $ptr_reset  = false,
+        multi       = {},
         filters     = $list.data('filters');
     $list.find('.list-filter').each(function () {
       if ($(this).data('filter-type') !== 'page' && filters[ $(this).data('filter') ] !== $(this).val()) {
@@ -85,6 +89,34 @@
       }
       new_filters[ $(this).data('filter') ] = $(this).val();
     });
+    if( $self.hasClass('multi-filter') ) {
+      if( $self.is(':checked') ) {
+        $self.closest('li').addClass('selected');
+      } else {
+        $self.closest('li').removeClass('selected');
+      }
+    }
+    // Loop through all multi filters and get the checked values....
+    $list.find('.multi-filter').each(function() {
+      var t = $(this).data('filter');
+      if( ! multi.hasOwnProperty( t ) ) {
+        multi[t] = {};
+      }
+      if( $(this).is(':checked') ) {
+        multi[t][ $(this).val() ] = 1;
+      } else {
+
+      }
+    });
+    $.each( multi, function( k, v ) {
+      if( Object.keys( v ).sort().join('::') != Object.keys( filters[ k ] ).sort().join('::') ) {
+        $ptr_reset = true;
+      }
+      new_filters[ k ] = v;
+    });
+    // Now loop through the arry - check they are different - if so set ptr_reset and then
+    // copy then to new_filters...
+
     if( $ptr_reset ) {
       new_filters.page = 0;
     }
@@ -137,9 +169,20 @@
   }).each(function () {
     // Part 1 - find the container and get any associated filters....
     var $self = $(this), filters = {}, filter_info = {};
+    // Need to modify this so it can cope with an array of filters!!
     $self.find('.list-filter').each(function () {
       filters[ $(this).data('filter') ] = $(this).val();
       filter_info[ $(this).data('filter') ] = $(this).data('filter-type');
+    });
+    $self.find('.multi-filter').each(function () {
+      var t = $(this).data('filter');
+      if( ! filter_info.hasOwnProperty( t ) ) {
+        filters[ t     ] = {};
+        filter_info[ t ] = 'multi';
+      }
+      if( $(this).is(":checked") ) {
+        filters[ t ][ $(this).val() ] = 1;
+      }
     });
 
     // Nasty hack - we store filters in the URL so that we have a unique hash....
@@ -148,6 +191,14 @@
       var t = JSON.parse( decodeURI( document.location.hash.substr(1) ) );
       if( t.hasOwnProperty( $self.data('key') ) ) {
         $.extend(filters,t[$self.data('key')]);
+        $self.find('.multi-filter').each(function() {
+// Add code to check boxes and update filters!!
+          if( filters[ $(this).data('filter') ].hasOwnProperty( ''+$(this).val() ) ) {
+            $(this).prop('checked',true); $(this).closest('li').addClass('selected');
+          } else {
+            $(this).closest('li').removeClass('selected');
+          }
+        });
         $self.find('.list-filter').each(function () {
           $(this).val( filters[ $(this).data('filter') ]);
           if( $(this).data('filter-bind') ) {
@@ -216,6 +267,13 @@
    Now the meat of the module ... updating the results page when the data is received/filters changed
 
 */
+  function isEmpty(obj) {
+    for(var key in obj) {
+      if(obj.hasOwnProperty(key))
+        return false;
+      }
+    return true;
+  }
   function list_update_results($list, reset_flag) {
     // If reset_flag is reset we clear the display and reset the pointer.
     if (reset_flag && reset_flag === 'reset') {
@@ -229,14 +287,32 @@
         sz      = $list.data('batch-size'),
         f_info  = $list.data('filter-info'),
 // Tweak this to filter on dom elements not entries in hash using data() / text() on nodes...
-    c       = 0;
+        c       = 0,
+        cat_counts = {};
     $list.find('.list-item').each( function () {
       var el = $(this);
       var skip = 0;
       $.each(flt, function (k, v) {
         var t = f_info[k];
-        if( v !== '') { // Apply filter...
-          if( t === 'lookup' && ( el.data(k) != v ) || t === 'array'  && ( el.data(k).indexOf(v) < 0 ) || t === 'text'   && ( el.text().toLowerCase().indexOf(v.toLowerCase()) < 0 )
+        if( ( 'object' === typeof v ) ? ! isEmpty( v ) : (v !== '') ) { // Apply filter...
+          if( t === 'multi' ) {
+            if( Array.isArray( el.data(k) ) ) {
+              // We have an array of data - so we need to see if none of the elements in el.data(k) are in the list
+              if( ! jQuery.grep( el.data(k), function(val) { return v.hasOwnProperty( ''+val ); } ).length ) {
+                skip = 1;
+                return false;
+              }
+            } else {
+              // We have a single value need to see if it is in the list...
+              if( ! v.hasOwnProperty( ''+el.data(k) ) ) {
+                skip = 1;
+                return false;
+              }
+            }
+          } else if(
+            t === 'lookup' && ( el.data(k) != v ) ||
+            t === 'array'  && ( el.data(k).indexOf(v) < 0 ) ||
+            t === 'text'   && ( el.text().toLowerCase().indexOf(v.toLowerCase()) < 0 )
           ) {
             skip = 1;
             return false;
@@ -248,9 +324,41 @@
         el.data('show', 0);
       } else {
         el.data('show', 1 );
+        $.each( el.data(), function( k,v ) {
+          if( k === 'id' || k === 'show' ) {
+            return;
+          }
+          if( Array.isArray( v ) ) {
+            $.each( v, function( kk,vv ) {
+              if( ! cat_counts.hasOwnProperty( ''+vv ) ) {
+                cat_counts[ ''+vv ] = 1;
+              } else {
+                cat_counts[ ''+vv ] +=1;
+              }
+            });
+          } else {
+            if( ! cat_counts.hasOwnProperty( ''+v ) ) {
+              cat_counts[ ''+v ] = 1;
+            } else {
+              cat_counts[ ''+v ] +=1;
+            }
+          }
+        });
         c++;
       }
       el.hide();
+    });
+    // Update the count of entries matched if .filter-count exists...
+    $list.find('.filter-count').text(c);
+    $list.find('.multi-block li').each( function(){
+      var id = $(this).find('input').val();
+      if( cat_counts.hasOwnProperty( id ) ) {
+        $(this).removeClass('no-entries');
+        $(this).find('span').text( cat_counts[id]+'/'+$(this).data('count') );
+      } else {
+        $(this).find('span').text('0/'+$(this).data('count'));
+        $(this).addClass('no-entries');
+      }
     });
       // Deal with the case when there are NO entries ....
       //    Show any "no entries" message and hide pagination if there is any...
