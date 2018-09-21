@@ -65,6 +65,19 @@
   'use strict';
   // Add handlers to links to arbitrarily set filters elsewhere on the page.
   //$('.change-filter').on('click', function () {
+  $('.reset-filters').on('click',function(){
+    var $list = $(this).closest('.list-container'), new_filters = {};
+    $list.find('.list-filter').each(function(){
+      $(this).val('');
+      new_filters[ $(this).data('filter') ] = '';
+    });
+    $list.find('.multi-filter').each( function(){
+      $(this).prop('checked',false);
+      new_filters[ $(this).data('filter') ] = {};
+    });
+    $list.data('filters',new_filters);
+    list_update_results($list, 'reset' );
+  });
   $('body').on('click', '.change-filter', function () {
     $.each( $(this).data('filter'), function (k, v) {
       $('#' + k).val(v).trigger('change');
@@ -274,6 +287,7 @@
       }
     return true;
   }
+
   function list_update_results($list, reset_flag) {
     // If reset_flag is reset we clear the display and reset the pointer.
     if (reset_flag && reset_flag === 'reset') {
@@ -290,8 +304,10 @@
         c       = 0,
         cat_counts = {};
     $list.find('.list-item').each( function () {
-      var el = $(this);
-      var skip = 0;
+      var el      = $(this),
+          skip    = 0,
+          skip_filter = {},
+          skip_filter_n = 0;
       $.each(flt, function (k, v) {
         var t = f_info[k];
         if( ( 'object' === typeof v ) ? ! isEmpty( v ) : (v !== '') ) { // Apply filter...
@@ -300,13 +316,17 @@
               // We have an array of data - so we need to see if none of the elements in el.data(k) are in the list
               if( ! jQuery.grep( el.data(k), function(val) { return v.hasOwnProperty( ''+val ); } ).length ) {
                 skip = 1;
-                return false;
+                skip_filter[ k ] = 1;
+                skip_filter_n ++;
+                return true;
               }
             } else {
               // We have a single value need to see if it is in the list...
               if( ! v.hasOwnProperty( ''+el.data(k) ) ) {
                 skip = 1;
-                return false;
+                skip_filter[ k ] = 1;
+                skip_filter_n ++;
+                return true;
               }
             }
           } else if(
@@ -315,13 +335,37 @@
             t === 'text'   && ( el.text().toLowerCase().indexOf(v.toLowerCase()) < 0 )
           ) {
             skip = 1;
-            return false;
+            skip_filter[ k ] = 1;
+            skip_filter_n ++;
+            return true;
           }
         }
         return true;
       });
-      if( skip ) {
+      if( skip ) { // We need to see if this was
         el.data('show', 0);
+        $.each( el.data(), function( k,v ) {
+          var fv = flt[k];
+          if( skip_filter_n === 1 && skip_filter.hasOwnProperty( k ) ) { // Only one filter
+            if( ( 'object' === typeof fv ) ? ! isEmpty( fv ) : (fv !== '') ) {
+              if( Array.isArray( v ) ) {
+                $.each( v, function( kk,vv ) {
+                  if( ! cat_counts.hasOwnProperty( ''+vv ) ) {
+                    cat_counts[ ''+vv ] = 1;
+                  } else {
+                    cat_counts[ ''+vv ] +=1;
+                  }
+                });
+              } else {
+                if( ! cat_counts.hasOwnProperty( ''+v ) ) {
+                  cat_counts[ ''+v ] = 1;
+                } else {
+                  cat_counts[ ''+v ] +=1;
+                }
+              }
+            }
+          }
+        });
       } else {
         el.data('show', 1 );
         $.each( el.data(), function( k,v ) {

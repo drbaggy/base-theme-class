@@ -16,3 +16,7 @@ li.no-entries { color: #999 }
 .twocol dd { width:68%; float: right; font-size: 80% }
 dl.twocol:after { display: none; height: 1px; clear: both; content: '.' }
 .cat_desc { clear: both }
+.reset-filters { float: right; font-size: 0.5em; background-color:#fcc; content: 'reset'; display: block; padding: 2px 0.5em; margin: 2px; cursor: pointer }
+
+.entry-count .pagination { display: block; float: right }
+.entry-count > span:last-of-type { padding: 0.5em 2px; font-weight: bold }
