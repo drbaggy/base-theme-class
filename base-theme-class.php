@@ -603,6 +603,10 @@ class BaseThemeClass {
       },
       'wp'        => function( $s ) { // Used to call one of the standard wordpress template blocks
          switch( $s ) {
+           case 'charset' :
+             return get_bloginfo( 'charset' );
+           case 'lang':
+             return get_language_attributes();
            case 'path' :
              return $this->template_directory_uri;
            case 'body_class' :
@@ -888,7 +892,7 @@ class BaseThemeClass {
     $return = [];
     foreach( $entries as $post ) {
       $meta = get_fields( $post->ID );
-      $return[] = array_merge( $meta, [ 'title' => $post->post_title, 'ID' => $post->ID, 'name' => $post->post_name ] );
+      $return[] = array_merge( $meta, [ 'url' => get_permalink( $post ), 'title' => $post->post_title, 'ID' => $post->ID, 'name' => $post->post_name ] );
     }
     return $return;
   }
