@@ -95,7 +95,7 @@ class BaseThemeClass {
          ->register_custom_parameters()
          ->register_short_codes()
          // The following is experimental - creating a new sub-editor role [[ please ignore at the moment ]]
-         ->register_new_role()
+         //->register_new_role()
          ;
   }
 
@@ -854,9 +854,9 @@ class BaseThemeClass {
 
   function render( $template_code, $data = []) {
     return $this->collapse_empty(
-      preg_replace('/<a\s[^>]*href=""[^>]*>.*?<\/a>/','',       // Empty links
-      preg_replace('/<iframe\s[^>]*src=""[^>]*><\/iframe>/','', // Empty iframes
-      preg_replace('/<img\s[^>]*src=""[^>]*>/','',              // Empty images
+      preg_replace('/<a\s[^>]*?href=""[^>]*>.*?<\/a>/s',       '', // Empty links
+      preg_replace('/<iframe\s[^>]*?src=""[^>]*><\/iframe>/',  '', // Empty iframes
+      preg_replace('/<img\s[^>]*?src=""[^>]*>/',               '', // Empty images
         $this->expand_template( $template_code, $data ) ) ) ) );
   }
 
@@ -951,7 +951,6 @@ class BaseThemeClass {
     if( ! is_admin() ) { 
       return;
     }
-    error_log( "FIlter" );
     $user = wp_get_current_user();
     if( ! in_array( 'content_editor', (array) $user->roles ) ) {
     //The user has the "author" role
