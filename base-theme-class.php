@@ -51,6 +51,56 @@
  * Domain Path: /lang
  */
 
+const FORM_FIELDS = [
+  'Form Key'       => [ 'type' => 'text' ], // Code used to define call back which is made once form is submitted
+  'To'             => [ 'type' => 'email', 'required' => 1 ],                                                         // Email address submission info is sent to
+  'Thank you'      => [ 'type' => 'wysiwyg', 'required' => 1, 'toolbar' => 'full', 'media_upload' => 'yes' ],         // Mark up for thank you page
+  'Email subject'  => [ 'type' => 'text', 'required' => 1, 'default_value' => 'Thank you' ],                          // Subject for email
+  'Email template' => [ 'type' => 'textarea', 'required' => 1, 'instructions' => 'Text to appear at head of email' ], // Body for email...
+  'Button label'   => [ 'type' => 'text', 'required' => 1, 'default_value' => 'Submit' ],                             // Form submit button text...
+  'Fields'         => [ 'type' => 'repeater', 'button_label' => 'Add field', 'layout' => 'row', // Form fields - at the moment this is a single list - may add a subgroup
+                                                                                                // to define stages...
+    'return_format' => 'value', 'sub_fields' => [                                               // Element type
+      'Element type' => [ 'type' => 'radio', 'required' => 1,
+        'choices' => [
+          'text'     => 'text',
+          'textarea' => 'textarea',
+          'email'    => 'email',
+          'url'      => 'url',
+          'post_select_multiple' => 'Post select (multiple)',
+          'post_select'          => 'Post select',
+          'select'               => 'select',
+          'date'                 => 'date',
+        ] ],
+      'Element code' => [ 'type' => 'text', 'requried' => 1 ],                                  // Format element key
+      'Element name' => [ 'type' => 'text', 'requried' => 1 ],                                  // Label for form element
+      'Element requried' => [ 'type' => 'true_false' ],                                         // Is element required...
+      'Element intro'    => [ 'type' => 'wysiwyg'    ],                                         // Text to appear before the form element
+      'Element notes'    => [ 'type' => 'wysiwyg'    ],                                         // Any additional notes..
+      'Max length'    => [ 'type' => 'number', 'conditional_logic' => [                         // Max length of text/textarea fields (chars)
+        [[ 'field'=>'field_ff_fields_element_type', 'operator' => '==', 'value' => 'text'     ]],
+        [[ 'field'=>'field_ff_fields_element_type', 'operator' => '==', 'value' => 'textarea' ]]
+      ] ],
+      'Post type'    => [ 'type' => 'posttype_select', 'conditional_logic' => [                 // For post select options - type of "post" to include
+        [[ 'field'=>'field_ff_fields_element_type', 'operator' => '==', 'value' => 'post_select'          ]],
+        [[ 'field'=>'field_ff_fields_element_type', 'operator' => '==', 'value' => 'post_select_multiple' ]]
+      ] ],
+      'Values' => [ 'type' => 'repeater', 'button_label' => 'Add value', 'layout' => 'table',   // For select elements - key/value pairs for drop down...
+        'return_format' => 'value', 'sub_fields' => [
+          'Key'   => [ 'type' => 'text', 'required' => 1 ],
+          'Value' => [ 'type' => 'text', 'required' => 1 ],
+        ], 'conditional_logic' => [
+        [[ 'field'=>'field_ff_fields_element_type', 'operator' => '==', 'value' => 'select' ]],
+      ] ],
+      'Display type' => [ 'type' => 'button_group', 'layout' => 'horizontal',                   // For select/multi - display as drop down or button array..
+                          'choices' => [ 'buttons' => 'Buttons', 'select' => 'Drop down' ], 'conditional_logic' => [
+         [[ 'field'=>'field_ff_fields_element_type', 'operator' => '==', 'value' => 'select' ]],
+         [[ 'field'=>'field_ff_fields_element_type', 'operator' => '==', 'value' => 'post_select' ]],
+         [[ 'field'=>'field_ff_fields_element_type', 'operator' => '==', 'value' => 'post_select_multiple' ]]
+      ] ],
+    ] ]
+];
+
 const DEFAULT_DEFN = [
   'PARAMETERS'   => [   // Associate array of definitions...
     // Key is variable "name"
@@ -271,16 +321,32 @@ class BaseThemeClass {
       'title'           => $name,
       'fields'          => [],
       'location'        => [[$location]],
-      'options'         => [ 'position' => 'normal', 'layout' => 'no_box', 'hide_on_screen' => [ 0 => 'the_content' ] ],
-      'menu_order'      => 0,
+      'options'         => [ 'position' => 'normal', 'layout' => 'no_box', 'hide_on_screen' => [ 'the_content' ] ],
+      'menu_order'      => array_key_exists( 'menu_order', $extra ) ? $extra['menu_order'] : 50,
       'label_placement' => isset( $extra['labels'] ) ? $extra['labels'] : 'left'
     ];
+    if( array_key_exists( 'title_template' , $extra ) ) {
+      $defn['options']['hide_on_screen'][] = 'permalink';
+      $defn['options']['hide_on_screen'][] = 'slug';
+    }
     // Allow a prefix for type so we don't have issues of field name clash
     // across multiple types....
     $prefix         = isset( $extra['prefix'] ) ? $extra['prefix'].'_' : '';
     $defn['fields'] = $this->munge_fields( $prefix, $fields, $type );
     // Finally register the acf group to generate the admin interface!
     register_field_group( $defn );
+    if( array_key_exists( 'title_template', $extra ) ) {
+      add_filter( 'wp_insert_post_data', function( $post_data ) use ($type,$prefix,$extra) {
+        if( $post_data[ 'post_type' ] === $type && array_key_exists( 'acf', $_POST ) ) { 
+          $post_data[ 'post_title' ] = preg_replace_callback( '/\[\[(\w+)\]\]/',
+            function( $m ) use ( $prefix ) {
+              return $_POST['acf'][ "field_$prefix$m[1]" ];
+            },
+            $extra['title_template'] );
+        }
+        return $post_data;
+      } );
+    }
     return $this;
   }
 
@@ -786,6 +852,7 @@ class BaseThemeClass {
               $this->show_error(
                 "Rendering array as '$variable' in '$template_code' ($render_type)<pre>".print_r($t_data,1).'</pre>'
               );
+              return '';
             }
             if( array_key_exists( $render_type, $this->scalar_methods ) ) {
               return $this->scalar_methods[ $render_type ]( $t_data );
@@ -828,6 +895,11 @@ class BaseThemeClass {
         $t_data = $data;
         foreach( explode( '.', $variable ) as $key ) {
           // Missing data
+          if( is_object( $t_data) ) {
+            if( property_exists( $t_data, $key ) ) {
+              $t_data = $t_data->$key; 
+            }
+          }
           if( !is_array( $t_data ) ) {
             return ''; // No value in tree with that key!
           }
@@ -892,6 +964,9 @@ class BaseThemeClass {
     $return = [];
     foreach( $entries as $post ) {
       $meta = get_fields( $post->ID );
+      if( !is_array( $meta ) ) {
+        $meta = [];
+      }
       $return[] = array_merge( $meta, [ 'url' => get_permalink( $post ), 'title' => $post->post_title, 'ID' => $post->ID, 'name' => $post->post_name ] );
     }
     return $return;
@@ -965,6 +1040,21 @@ class BaseThemeClass {
     register_activation_hook( __FILE__, [ $this, 'add_roles_on_plugin_activation' ] );
     add_action( 'pre_get_posts', [ $this, 'content_editor_filter' ] );
     return $this;
+  }
+
+
+  function get_atts( ) {
+    $defaults = func_get_args();
+    $atts = array_shift( $defaults );
+    if( ! is_array( $atts ) ) {
+      $atts = [];
+    }
+    $ret = [];
+    foreach( $defaults as $d ) {
+      $ret[] = sizeof( $atts ) > 0 ? array_shift( $atts ) : $d;
+    }
+    $ret = array_merge( $ret, $atts );
+    return $ret;
   }
 
 }
