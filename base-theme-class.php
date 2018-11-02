@@ -1057,5 +1057,11 @@ class BaseThemeClass {
     return $ret;
   }
 
+  // Code to allow editors to edit them options - mainly the menus...
+  function give_editors_menu_permissions() {
+    $role_object = get_role( 'editor' );
+    $role_object->add_cap( 'edit_theme_options' );
+    return $this;
+  }
 }
 
