@@ -329,7 +329,7 @@
               }
             }
           } else if(
-            t === 'lookup' && ( el.data(k) !== v ) ||
+            t === 'lookup' && ( ''+el.data(k) !== ''+v ) ||
             t === 'array'  && ( el.data(k).indexOf(v) < 0 ) ||
             t === 'text'   && ( el.text().toLowerCase().indexOf(v.toLowerCase()) < 0 )
           ) {
