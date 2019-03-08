@@ -334,6 +334,19 @@ class BaseThemeClass {
     $prefix         = isset( $extra['prefix'] ) ? $extra['prefix'].'_' : '';
     $defn['fields'] = $this->munge_fields( $prefix, $fields, $type );
     // Finally register the acf group to generate the admin interface!
+    if( isset( $extra['fields'] ) ) {
+      foreach( $extra['fields'] as $fg ) {
+        $pos++;
+        $defn[ 'id'               ] = 'acf_'.$type.'_'.$fg['type' ];
+        $defn[ 'title'            ] = $fg['title'];
+        $defn[ 'menu_order'       ]++;
+        $defn[ 'label_placement'  ] = isset( $fg['labels'] ) ? $fg['labels'] : 'left';
+        $defn[ 'fields'           ] = $this->munge_fields( $prefix.$fg['type'], $fg['fields'], $type );
+        $defn[ 'options'          ] = [ 'position' => 'normal' ];
+        register_field_group( $defn );
+      }
+    }
+
     register_field_group( $defn );
     if( array_key_exists( 'title_template', $extra ) ) {
       add_filter( 'wp_insert_post_data', function( $post_data ) use ($type,$prefix,$extra) {
@@ -363,6 +376,7 @@ class BaseThemeClass {
       'query_var'         => true,
       'show_ui'           => true,
       'show_admin_column' => true,
+      'show_in_menu'      => true,
       'rewrite'           => array( 'slug' => $code ),
       'heirarchical'      => isset( $extra['hierarchical'] ) ? $extra['hierarchical'] : false,
       'labels'            => [
@@ -382,12 +396,11 @@ class BaseThemeClass {
     // and add fields to it... note we don't have complex fields here!!!
     $munged = [];
     foreach( $fields as $field => $def ) {
-      $code = $this->cr( $field ); // Auto generate code for field, along with name etc...
-      $me = array_merge(
-        ['key'=>'field_'.$prefix.$code, 'label' => $field, 'name' => $code, 'layout' => 'row' ],
-        // Can over-ride any of these in $def as arrays are merged!
-        $def
-      );
+      $code = isset( $def['code'] ) ? $def['code'] : $this->cr( $field ); // Auto generate code for field, along with name etc..
+      $me = ['key'=>'field_'.$prefix.$code, 'label' => $field, 'name' => $code, 'layout' => 'row' ];
+      if( is_array( $def ) ) {
+        $me = array_merge( $me, $def );
+      }
       if( isset( $def['sub_fields'] ) ){
         $me['sub_fields'] = $this->munge_fields( $prefix.$code.'_', $def['sub_fields'], $type );
       }
@@ -599,6 +612,10 @@ class BaseThemeClass {
 
   function email_link( $atts, $content = null ) {
     $email = array_shift( $atts );
+    if( !$email ) { // If no email provided die!!
+      return '';
+    }
+
     $email = strpos( $email, '@' ) !== false
            ? $email
            : $email.'@'.get_theme_mod('email_domain')
@@ -897,7 +914,8 @@ class BaseThemeClass {
           // Missing data
           if( is_object( $t_data) ) {
             if( property_exists( $t_data, $key ) ) {
-              $t_data = $t_data->$key; 
+              $t_data = $t_data->$key;
+              continue;
             }
           }
           if( !is_array( $t_data ) ) {
