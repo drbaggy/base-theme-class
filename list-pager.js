@@ -329,9 +329,12 @@
               }
             }
           } else if(
-            t === 'lookup' && ( ''+el.data(k) !== ''+v ) ||
+            t === 'lookup' && ( el.data(k) != v ) ||
             t === 'array'  && ( el.data(k).indexOf(v) < 0 ) ||
-            t === 'text'   && ( el.text().toLowerCase().indexOf(v.toLowerCase()) < 0 )
+            t === 'text'   && (
+              el.text().toLowerCase().indexOf(v.toLowerCase()) < 0 &&
+              ( el.data('text') ? el.data('text').toLowerCase().indexOf(v.toLowerCase()) < 0 : 1 )
+            )
           ) {
             skip = 1;
             skip_filter[ k ] = 1;
