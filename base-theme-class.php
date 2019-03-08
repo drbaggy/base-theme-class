@@ -309,18 +309,22 @@ class BaseThemeClass {
     }
     // We do some magic now to the name to get the type...
     // Set the location - unless over-ridden in extra...
-    $location = [ 'param' => 'post_type', 'operator' => '==', 'value' => $type ];
+    $location = [[[ 'param' => 'post_type', 'operator' => '==', 'value' => $type ]]];
 
     if( isset( $extra['location'] ) ) {
       $t        = $extra['location'];
-      $location = [ 'param' => $t[0], 'operator' => $t[1], 'value' => $t[2] ];
+      if( is_array( $t[0] ) ) {
+        $location = [ array_map( function( $r ) { return [[ 'param' => $r[0], 'operator' => $r[1], 'value' => $r[2] ]]; }, $t ) ];
+      } else {
+        $location = [[[ 'param' => $t[0], 'operator' => $t[1], 'value' => $t[2] ]]];
+      }
     }
     // Create the basic definition
     $defn = [
       'id'              => 'acf_'.$type,
       'title'           => $name,
       'fields'          => [],
-      'location'        => [[$location]],
+      'location'        => $location,
       'options'         => [ 'position' => 'normal', 'layout' => 'no_box', 'hide_on_screen' => [ 'the_content' ] ],
       'menu_order'      => array_key_exists( 'menu_order', $extra ) ? $extra['menu_order'] : 50,
       'label_placement' => isset( $extra['labels'] ) ? $extra['labels'] : 'left'
@@ -334,6 +338,8 @@ class BaseThemeClass {
     $prefix         = isset( $extra['prefix'] ) ? $extra['prefix'].'_' : '';
     $defn['fields'] = $this->munge_fields( $prefix, $fields, $type );
     // Finally register the acf group to generate the admin interface!
+    register_field_group( $defn );
+
     if( isset( $extra['fields'] ) ) {
       foreach( $extra['fields'] as $fg ) {
         $pos++;
@@ -347,7 +353,6 @@ class BaseThemeClass {
       }
     }
 
-    register_field_group( $defn );
     if( array_key_exists( 'title_template', $extra ) ) {
       add_filter( 'wp_insert_post_data', function( $post_data ) use ($type,$prefix,$extra) {
         if( $post_data[ 'post_type' ] === $type && array_key_exists( 'acf', $_POST ) ) { 
