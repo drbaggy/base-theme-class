@@ -52,7 +52,7 @@
  */
 
 const EXTRA_SETUP = [
-  'date_picker' => [ 'default_value' => date('Ymd') ],
+  'date_picker' => [ 'return_format' => 'Ymd' ]
   'image'       => [ 'save_format' => 'object', 'library' => 'all', 'preview_size' => 'large' ],
 ];
 
