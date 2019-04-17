@@ -1,5 +1,5 @@
 <?php
-/*
+/* XX1
 +----------------------------------------------------------------------
 | Copyright (c) 2018 Genome Research Ltd.
 | This is part of the Wellcome Sanger Institute extensions to
@@ -50,6 +50,11 @@
  * License URI: https://www.gnu.org/licenses/lgpl.txt
  * Domain Path: /lang
  */
+
+const EXTRA_SETUP = [
+  'date_picker' => [ 'default_value' => date('Ymd') ],
+  'image'       => [ 'save_format' => 'object', 'library' => 'all', 'preview_size' => 'large' ],
+];
 
 const FORM_FIELDS = [
   'Form Key'       => [ 'type' => 'text' ], // Code used to define call back which is made once form is submitted
@@ -125,9 +130,11 @@ class BaseThemeClass {
   protected $debug;
   protected $array_methods;
   protected $scalar_methods;
+  protected $date_format;
 
   public function __construct( $defn ) {
     $this->defn = $defn;
+    $this->date_format = 'F jS Y';
     $this->initialize_templates()
          ->initialize_templates_directory()
          ->initialize_theme()
@@ -146,7 +153,13 @@ class BaseThemeClass {
          ->register_short_codes()
          // The following is experimental - creating a new sub-editor role [[ please ignore at the moment ]]
          //->register_new_role()
+         //->allow_authors_to_add_authors()
          ;
+  }
+
+  function set_date_format( $s ) {
+    $this->date_format = $s;
+    return $this;
   }
 
   function initialize_templates_directory() {
@@ -162,7 +175,7 @@ class BaseThemeClass {
 //----------------------------------------------------------------------
 
   function add_my_scripts_and_stylesheets() {
-    add_action( 'wp_enqueue_scripts',         array( $this, 'enqueue_scripts'  ) );
+    add_action( 'wp_enqueue_scripts',         array( $this, 'enqueue_scripts'  ), PHP_INT_MAX );
     return $this;
   }
 
@@ -242,8 +255,9 @@ class BaseThemeClass {
     add_filter(    'embed_oembed_discover',  '__return_false' );
     remove_action( 'wp_head',                'wp_shortlink_wp_head', 10);
     remove_action( 'template_redirect',      'wp_shortlink_header', 11);
-    remove_action( 'wp_head', 'feed_links', 2 );
-    remove_action( 'wp_head', 'feed_links_extra', 3 );
+    remove_action( 'wp_head',                'feed_links', 2 );
+    remove_action( 'wp_head',                'feed_links_extra', 3 );
+    remove_action( 'wp_head',                'wp_generator' );
     return $this;
   }
 
@@ -403,6 +417,9 @@ class BaseThemeClass {
     foreach( $fields as $field => $def ) {
       $code = isset( $def['code'] ) ? $def['code'] : $this->cr( $field ); // Auto generate code for field, along with name etc..
       $me = ['key'=>'field_'.$prefix.$code, 'label' => $field, 'name' => $code, 'layout' => 'row' ];
+      if( array_key_exists( $def['type'], EXTRA_SETUP ) ) {
+        $me = array_merge( $me, EXTRA_SETUP[ $def['type'] ] );
+      }
       if( is_array( $def ) ) {
         $me = array_merge( $me, $def );
       }
@@ -675,7 +692,7 @@ class BaseThemeClass {
     ];
     $this->scalar_methods = [
       'raw'       => function( $s ) { return $s; },
-      'date'      => function( $s ) { return $s ? date_format( date_create( $s ), 'F jS Y' ) : '-'; },
+      'date'      => function( $s ) { return $s ? date_format( date_create( $s ), $this->date_format ) : '-'; },
       'enc'       => 'rawurlencode',
       'rand_enc'  => function( $s ) { return $this->random_url_encode( $s ); },
       'integer'   => 'intval',
@@ -1054,17 +1071,10 @@ class BaseThemeClass {
     //The user has the "author" role
       return;
     }
-    $wp_query->set( 'meta_key', 'country' );
+    $wp_query->set( 'meta_key',   'country' );
     $wp_query->set( 'meta_value', 'GB' );
     error_log( "CONTENT EDITOR" );
   }
-
-  function register_new_role() {
-    register_activation_hook( __FILE__, [ $this, 'add_roles_on_plugin_activation' ] );
-    add_action( 'pre_get_posts', [ $this, 'content_editor_filter' ] );
-    return $this;
-  }
-
 
   function get_atts( ) {
     $defaults = func_get_args();
@@ -1080,11 +1090,37 @@ class BaseThemeClass {
     return $ret;
   }
 
-  // Code to allow editors to edit them options - mainly the menus...
+  // Code to allow editors to edit theme options - mainly the menus...
   function give_editors_menu_permissions() {
     $role_object = get_role( 'editor' );
     $role_object->add_cap( 'edit_theme_options' );
     return $this;
+  }
+
+  // Wrapper around co-authors to allow authors to add other authors...
+  function allow_authors_to_add_authors() {
+    add_filter( 'coauthors_plus_edit_authors', [ $this, 'let_me_add_other_authors' ] );
+  }
+
+  function let_me_add_other_authors( $can_set_authors ) {
+    if( $can_set_authors ) {       // We know that the person can edit so
+      return $can_set_authors;     // return true!
+    }
+    $post         = get_post();                  // Am I an author!
+    $authors      = get_coauthors( $post->ID );  // if so let me edit permissions
+    $current_user = wp_get_current_user();       // This may not be strictly necessary
+    foreach( $authors as $auth )  {              // But it's belt and braces!
+      if( $auth->ID === $current_user->ID ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function register_new_role() {
+    register_activation_hook( __FILE__, [ $this, 'add_roles_on_plugin_activation' ] );
+    add_action( 'pre_get_posts', [ $this, 'content_editor_filter' ] );
+    return $his;
   }
 }
 
