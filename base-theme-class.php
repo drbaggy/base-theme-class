@@ -118,7 +118,7 @@ const DEFAULT_DEFN = [
   ],
   'DEFAULT_TYPE'  => 'page', // We need to know what type to default to as removing posts!
   'STYLES'        => [],     // Associate array of CSS files (key/filename)
-  'SCRIPTS'       => [],      // Associate array of JS files  (key/filename)
+  'SCRIPTS'       => [ 'pubs' => '/wp-content/plugins/base-theme-class/pubs.js' ],      // Associate array of JS files  (key/filename)
   'ADMIN_SCRIPTS' => [],      // Associate array of JS files  (key/filename)
   'ADMIN_STYLES'  => []      // Associate array of JS files  (key/filename)
 ];
@@ -369,7 +369,6 @@ class BaseThemeClass {
   }
   
   function define_block( $name, $fields, $extra ) {
-    error_log( $name );
     if( ! function_exists('acf_register_block_type') ) {
       return $this->show_error( 'ACF plugin not installed or does not support blocks', true );
     }
@@ -387,9 +386,7 @@ class BaseThemeClass {
       'icon'            => $icon,
       'keywords'        => array( $name, $type, 'custom' ),
     ];
-    error_log( "Register block" );
     acf_register_block_type( $defn );
-    //error_log( print_r(,1) );
     $fg_defn = [
       'id'              => 'acf_block_'.$type,
       'title'           => $name,
@@ -401,7 +398,6 @@ class BaseThemeClass {
     $prefix            = isset( $extra['prefix'] ) ? $extra['prefix'].'_' : '';
     $fg_defn['fields'] = $this->munge_fields( $prefix, $fields, $type );
     register_field_group( $fg_defn );
-    error_log( "Register field group" );
     return $this;
   }
 
@@ -993,7 +989,6 @@ class BaseThemeClass {
 
             list( $render_type, $variable, $extra ) = [ $match[1], $match[2], array_key_exists( 3, $match ) ? $match[3] : '' ];
 
-//error_log( "$template_code: $render_type - $variable -- $extra\n\n" );
             $t_data = $this->parse_variable( $variable, $extra, $data );
             if( array_key_exists( $render_type, $this->array_methods ) ) {
               return $this->array_methods[ $render_type ]( $t_data, $extra );
@@ -1184,7 +1179,6 @@ class BaseThemeClass {
     }
     $wp_query->set( 'meta_key',   'country' );
     $wp_query->set( 'meta_value', 'GB' );
-    error_log( "CONTENT EDITOR" );
   }
 
   function get_atts( ) {
