@@ -70,9 +70,11 @@ const DEFAULT_DEFN = [
     // default - default value
     // description - help text appears under
   ],
-  'DEFAULT_TYPE' => 'page', // We need to know what type to default to as removing posts!
-  'STYLE'        => [],     // Associate array of CSS files (key/filename)
-  'SCRIPTS'      => []      // Associate array of JS files  (key/filename)
+  'DEFAULT_TYPE'  => 'page', // We need to know what type to default to as removing posts!
+  'STYLES'        => [],     // Associate array of CSS files (key/filename)
+  'SCRIPTS'       => [ 'pubs' => '/wp-content/plugins/base-theme-class/pubs.js' ],      // Associate array of JS files  (key/filename)
+  'ADMIN_SCRIPTS' => [],      // Associate array of JS files  (key/filename)
+  'ADMIN_STYLES'  => []      // Associate array of JS files  (key/filename)
 ];
 
 class BaseThemeClass {
@@ -152,6 +154,7 @@ class BaseThemeClass {
 
   function add_my_scripts_and_stylesheets() {
     add_action( 'wp_enqueue_scripts',         array( $this, 'enqueue_scripts'  ), PHP_INT_MAX );
+    add_action( 'enqueue_block_editor_assets',         array( $this, 'enqueue_admin_scripts'  ), PHP_INT_MAX );
     return $this;
   }
 
@@ -169,6 +172,27 @@ class BaseThemeClass {
     // Push scripts into footer...
     if( isset( $this->defn[ 'SCRIPTS' ] ) ) {
       foreach( $this->defn[ 'SCRIPTS' ] as $key => $name ) {
+        if( preg_match( '/^(https?:\/)?\//', $name ) ){
+          wp_enqueue_script( $key, $name,array(),null,true);
+        } else {
+          wp_enqueue_script( $key, $this->template_directory_uri.'/'.$name,array(),null,true);
+        }
+      }
+    }
+  }
+  public function enqueue_admin_scripts() {
+    if( isset( $this->defn[ 'ADMIN_STYLES' ] ) ) {
+      foreach( $this->defn[ 'ADMIN_STYLES' ] as $key => $name ) {
+        if( preg_match( '/^(https?:\/)?\//', $name ) ){
+          wp_enqueue_style( $key, $name,array(),null,false);
+        } else {
+          wp_enqueue_style( $key, $this->template_directory_uri.'/'.$name,array(),null,false);
+        }
+      }
+    }
+    // Push scripts into footer...
+    if( isset( $this->defn[ 'ADMIN_SCRIPTS' ] ) ) {
+      foreach( $this->defn[ 'ADMIN_SCRIPTS' ] as $key => $name ) {
         if( preg_match( '/^(https?:\/)?\//', $name ) ){
           wp_enqueue_script( $key, $name,array(),null,true);
         } else {
@@ -286,9 +310,54 @@ class BaseThemeClass {
     return $string.'s';
   }
 
+  function block_render( $block, $content = '', $is_preview = false, $post_id = 0 ) {
+    $template_code = 'block-'.$this->cr( $block['title'] );
+    
+    print $this->render(
+      $template_code,
+      array_merge(
+        [ 'random_id' => str_replace('.','-',microtime(true)).'-'.mt_rand(1e6,1e7) ],
+        get_fields()
+      )
+    );
+  }
+  
+  function define_block( $name, $fields, $extra ) {
+    if( ! function_exists('acf_register_block_type') ) {
+      return $this->show_error( 'ACF plugin not installed or does not support blocks', true );
+    }
+    $type = array_key_exists( 'code', $extra ) ? $extra['code'] : $this->cr( $name );
+    $desc = array_key_exists( 'desc', $extra ) ? $extra['desc'] : 'A custom '.$name.' block';
+    $temp = array_key_exists( 'temp', $extra ) ? $extra['temp'] : 'block-'.$type;
+    $icon = array_key_exists( 'icon', $extra ) ? 'admin-'.$extra['icon'] : 'admin-comments';
+    $cat  = array_key_exists( 'cat', $extra )  ? $extra['cat']  : 'embed';
+    $defn = [
+      'name'            => $type,
+      'title'           => $name,
+      'description'     => $desc,
+      'render_callback' => array( $this, 'block_render' ),// function( $block ) use ( $temp ) { echo $this->render( $temp, $block ); },
+      'category'        => $cat,
+      'icon'            => $icon,
+      'keywords'        => array( $name, $type, 'custom' ),
+    ];
+    acf_register_block_type( $defn );
+    $fg_defn = [
+      'id'              => 'acf_block_'.$type,
+      'title'           => $name,
+      'fields'          => [],
+      'options'         => [],
+      'location'        => [[[ 'param'=>'block', 'operator' => '==', 'value'=>'acf/'.$type ]]],
+      'label_placement' => isset( $extra['labels'] ) ? $extra['labels'] : 'left',
+    ];
+    $prefix            = isset( $extra['prefix'] ) ? $extra['prefix'].'_' : '';
+    $fg_defn['fields'] = $this->munge_fields( $prefix, $fields, $type );
+    register_field_group( $fg_defn );
+    return $this;
+  }
+
   function define_type( $name, $fields, $extra=[] ) {
     if(! function_exists("register_field_group") ) {
-      return  $this->show_error( 'ACF plugin not installed!' );
+      return  $this->show_error( 'ACF plugin not installed!', true );
     }
     // type is page or post or "not_custom" isn't set in extra
     // we will generate a custome type...
@@ -501,6 +570,11 @@ class BaseThemeClass {
       'section'     => 'title_tagline',
       'default'     => 'mydomainname.org.uk',
       'description' => 'Specify the domain for email addresses.'
+    ], 'publication_options' => [
+      'type'        => 'text',
+      'section'     => 'title_tagline',
+      'default'     => '',
+      'description' => 'Options for publications listings',
     ] ];
     if( isset( $this->defn[ 'PARAMETERS' ] ) ) {
       $params = array_merge( $params, $this->defn[ 'PARAMETERS' ] );
@@ -611,11 +685,9 @@ class BaseThemeClass {
   function publications_shortcode( $atts, $content = null ) {
     return sprintf(
 '
-<div class="ajax_publications" data-ids="%s">
-  Load pubs %s
-</div>
+<div class="ajax_publications" data-ids="%s %s">Loading publications...</div>
 ',
-      HTMLentities( implode( ' ', $atts ) ),
+      HTMLentities( get_theme_mod( 'publication_options' ) ),
       HTMLentities( implode( ' ', $atts ) )
     );
   }
@@ -846,12 +918,12 @@ class BaseThemeClass {
     return '';
   }
 
-  protected function show_error( $message ) {
+  protected function show_error( $message, $flag = false ) {
     if( $this->debug ) {
       return '<div class="error">'.HTMLentities( $message ).'</div>';
     }
     error_log( $message );
-    return '';
+    return $flag ? $this : '';
   }
 
   protected function expand_template( $template_code, $data) {
@@ -878,7 +950,6 @@ class BaseThemeClass {
 
             list( $render_type, $variable, $extra ) = [ $match[1], $match[2], array_key_exists( 3, $match ) ? $match[3] : '' ];
 
-//error_log( "$template_code: $render_type - $variable -- $extra\n\n" );
             $t_data = $this->parse_variable( $variable, $extra, $data );
             if( array_key_exists( $render_type, $this->array_methods ) ) {
               return $this->array_methods[ $render_type ]( $t_data, $extra );
@@ -960,7 +1031,7 @@ class BaseThemeClass {
     },$str);
   }
 
-  function render( $template_code, $data = []) {
+  function render( $template_code, $data = [] ) {
     return $this->collapse_empty(
       preg_replace('/<a\s[^>]*?href=""[^>]*>.*?<\/a>/s',       '', // Empty links
       preg_replace('/<iframe\s[^>]*?src=""[^>]*><\/iframe>/',  '', // Empty iframes
@@ -1069,7 +1140,6 @@ class BaseThemeClass {
     }
     $wp_query->set( 'meta_key',   'country' );
     $wp_query->set( 'meta_value', 'GB' );
-    error_log( "CONTENT EDITOR" );
   }
 
   function get_atts( ) {
