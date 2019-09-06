@@ -162,8 +162,8 @@
   $('.list-container').on('click', '.list-item', function () {
     // What to do when the user clicks on a feed item.
     // This opens a new window if there is a target set!!
-    var x = $(this).find('a').prop('href'),
-        t = $(this).find('a').prop('target');
+    var x = $(this).find('a.btn-more').prop('href'),
+        t = $(this).find('a.btn-more').prop('target');
     if (x) {
       if (t) {
         window.open(x, '_blank');
