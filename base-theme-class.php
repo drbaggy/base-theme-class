@@ -392,7 +392,6 @@ class BaseThemeClass {
     if( !( array_key_exists( 'show_contents', $extra ) && $extra[ 'show_contents' ]) ) {
       $defn['options']['hide_on_screen'][] = 'the_content';
     }
-    error_log( print_r( $defn,1) );
     if( array_key_exists( 'title_template' , $extra ) ) {
       $defn['options']['hide_on_screen'][] = 'permalink';
       $defn['options']['hide_on_screen'][] = 'slug';
@@ -1201,7 +1200,7 @@ class BaseThemeClass {
     return $form_fields;
   }
   function include_credit_as_data_attribute( $html, $id, $alt, $title ) {
-    $t = get_post_meta( $id ); error_log( print_r( $t , 1 ) );
+    $t = get_post_meta( $id );
     $credit = $t['custom_credit'];
     if( is_array( $credit ) ) {
       $credit = $credit[0];
