@@ -72,7 +72,7 @@ const DEFAULT_DEFN = [
   ],
   'DEFAULT_TYPE'  => 'page', // We need to know what type to default to as removing posts!
   'STYLES'        => [],     // Associate array of CSS files (key/filename)
-  'SCRIPTS'       => [ 'pubs' => '/wp-content/plugins/base-theme-class/pubs.js' ],      // Associate array of JS files  (key/filename)
+  'SCRIPTS'       => [ 'pubs' => ['/wp-content/plugins/base-theme-class/pubs.js',false] ],      // Associate array of JS files  (key/filename)
   'ADMIN_SCRIPTS' => [],      // Associate array of JS files  (key/filename)
   'ADMIN_STYLES'  => []      // Associate array of JS files  (key/filename)
 ];
@@ -173,10 +173,14 @@ class BaseThemeClass {
     // Push scripts into footer...
     if( isset( $this->defn[ 'SCRIPTS' ] ) ) {
       foreach( $this->defn[ 'SCRIPTS' ] as $key => $name ) {
+        $flag = true;
+        if( is_array($name) ) {
+          list($name,$flag) = $name;
+        }
         if( preg_match( '/^(https?:\/)?\//', $name ) ){
-          wp_enqueue_script( $key, $name,array(),null,true);
+          wp_enqueue_script( $key, $name,array(),null,$flag);
         } else {
-          wp_enqueue_script( $key, $this->template_directory_uri.'/'.$name,array(),null,true);
+          wp_enqueue_script( $key, $this->template_directory_uri.'/'.$name,array(),null,$flag);
         }
       }
     }
