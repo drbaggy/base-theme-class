@@ -3,17 +3,22 @@
 
   function show_pubs(x) {
     URL = '/component/references?pars='+encodeURIComponent($(x).data('ids'));
-    console.log("FETCH!");
     $.get( URL, function( h ) {
       $(x).html(h);
+      if( h.match(/<label class="earlier">/) ) {
+        $(x).find('label').last().after('<label class="earlier visible"><span>Earlier</span></label>');
+      }
     });
   }
 
   $(function(){
     $('body').on("change",".references input",function(){
-      console.log("CHANGE");
       var n = $(this).closest("label").prevAll("label").length;
       $(this).closest("div").find("ul").eq(n).show().siblings("ul").hide();
+    });
+    $('body').on('click','.earlier',function(){
+      console.log( "CLICKED ON EARLIER TAB - BRING UP DROPDOWN!" );
+      $(this).find('span').append('<p style="position: absolute; margin-top: -3em">POPUP!<br />POPUP!<br />POPUP!<br />POPUP!<br />POPUP!<br />POPUP!<br /></p>');
     });
     if( $('body').hasClass('ajax_pub_processed') ) {
       return;
