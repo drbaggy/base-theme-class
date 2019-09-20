@@ -940,7 +940,7 @@ class BaseThemeClass {
       $function = $this->preprocessors[$template_code];
       $data = $function( $data, $this );
     }
-    $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-~.\w+]+)(?::([^\]]+))?\]\]/',
+    $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-@~.\w+]+)(?::([^\]]+))?\]\]/',
        implode('|',array_keys( $this->array_methods )),
        implode('|',array_keys( $this->scalar_methods )) );
     $out = implode( '', array_map(
@@ -1006,6 +1006,9 @@ class BaseThemeClass {
         foreach( explode( '.', $variable ) as $key ) {
           // Missing data
           if( is_object( $t_data) ) {
+            if( $key == '@' ) {
+              $key = 'comment_count';
+            }
             if( property_exists( $t_data, $key ) ) {
               $t_data = $t_data->$key;
               continue;
@@ -1226,5 +1229,26 @@ class BaseThemeClass {
     add_action( 'edit_attachment',           [ $this, 'custom_media_save_attachment' ] );
     add_filter('get_image_tag',              [ $this, 'include_credit_as_data_attribute' ], 0, 4);
   }
+
+  function augment_objects( $objects, $field_names ) {
+    $return_scalar = 0;
+    if( ! is_array($objects) ) {
+      $return_scalar = 1;
+      $objects = [$objects];
+    }
+    $ids = array_map( function($o) { return $o->ID; }, $objects );
+    global $wpdb;
+    $res = $wpdb->dbh->query( 'select post_id,meta_key,meta_value from ' . $wpdb->prefix . 'postmeta
+      where post_id in ('.implode(',',$ids).')
+        and meta_key in ("'.implode('","',$field_names).'")' );
+    $mapped = [];
+    foreach( $res->fetch_all( MYSQLI_ASSOC ) as $row ) {
+      $mapped[$row['post_id']][$row['meta_key']] = $row['meta_value'];
+    }
+    foreach( $objects as $o ) {
+      $o->comment_count = $mapped[$o->ID];
+    }
+    return $return_scalar ? $objects[0] : $objects;
+  }  
 }
 
