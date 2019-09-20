@@ -164,13 +164,10 @@
     // This opens a new window if there is a target set!!
     var x = $(this).find('a.btn-more').prop('href'),
         t = $(this).find('a.btn-more').prop('target');
-<<<<<<< HEAD
-=======
     if( !x ) {
       x = $(this).find('a').last().prop('href'),
       t = $(this).find('a').last().prop('target');
     }
->>>>>>> b3e05a3137f9a7453c59fce819ae8857c9178fcc
     if (x) {
       if (t) {
         window.open(x, '_blank');
