@@ -72,7 +72,7 @@ const DEFAULT_DEFN = [
   ],
   'DEFAULT_TYPE'  => 'page', // We need to know what type to default to as removing posts!
   'STYLES'        => [],     // Associate array of CSS files (key/filename)
-  'SCRIPTS'       => [ 'pubs' => '/wp-content/plugins/base-theme-class/pubs.js' ],      // Associate array of JS files  (key/filename)
+  'SCRIPTS'       => [ 'pubs' => ['/wp-content/plugins/base-theme-class/pubs.js',false] ],      // Associate array of JS files  (key/filename)
   'ADMIN_SCRIPTS' => [],      // Associate array of JS files  (key/filename)
   'ADMIN_STYLES'  => []      // Associate array of JS files  (key/filename)
 ];
@@ -116,6 +116,7 @@ class BaseThemeClass {
          // The following is experimental - creating a new sub-editor role [[ please ignore at the moment ]]
          //->register_new_role()
          //->allow_authors_to_add_authors()
+         ->add_credit_code()
          ;
   }
 
@@ -172,10 +173,14 @@ class BaseThemeClass {
     // Push scripts into footer...
     if( isset( $this->defn[ 'SCRIPTS' ] ) ) {
       foreach( $this->defn[ 'SCRIPTS' ] as $key => $name ) {
+        $flag = true;
+        if( is_array($name) ) {
+          list($name,$flag) = $name;
+        }
         if( preg_match( '/^(https?:\/)?\//', $name ) ){
-          wp_enqueue_script( $key, $name,array(),null,true);
+          wp_enqueue_script( $key, $name,array(),null,$flag);
         } else {
-          wp_enqueue_script( $key, $this->template_directory_uri.'/'.$name,array(),null,true);
+          wp_enqueue_script( $key, $this->template_directory_uri.'/'.$name,array(),null,$flag);
         }
       }
     }
@@ -391,7 +396,6 @@ class BaseThemeClass {
     if( !( array_key_exists( 'show_contents', $extra ) && $extra[ 'show_contents' ]) ) {
       $defn['options']['hide_on_screen'][] = 'the_content';
     }
-    error_log( print_r( $defn,1) );
     if( array_key_exists( 'title_template' , $extra ) ) {
       $defn['options']['hide_on_screen'][] = 'permalink';
       $defn['options']['hide_on_screen'][] = 'slug';
@@ -1046,7 +1050,8 @@ class BaseThemeClass {
 
   function output_page( $page_type ) {
     get_header();
-    $extra = ['ID'=>get_the_ID(), 'url'=>get_permalink(),'title'=>the_title('','',false)];
+    global $post;
+    $extra = ['ID'=>get_the_ID(), 'url'=>get_permalink(),'title'=>the_title('','',false), 'content' => $post->post_content ];
     if( is_array( get_fields() ) ) {
       $this->output( $page_type, array_merge(get_fields(),$extra) );
     } else {
@@ -1187,6 +1192,39 @@ class BaseThemeClass {
     register_activation_hook( __FILE__, [ $this, 'add_roles_on_plugin_activation' ] );
     add_action( 'pre_get_posts', [ $this, 'content_editor_filter' ] );
     return $his;
+  }
+  function custom_media_add_credit( $form_fields, $post ) {
+    $field_value = get_post_meta( $post->ID, 'custom_credit', true );
+    $form_fields['custom_credit'] = array(
+        'value' => $field_value ? $field_value : '',
+        'label' => __( 'Credit' ),
+        'helps' => __( 'Enter credit details for image' ),
+        'input'  => 'text'
+    );
+    return $form_fields;
+  }
+  function include_credit_as_data_attribute( $html, $id, $alt, $title ) {
+    $t = get_post_meta( $id );
+    $credit = $t['custom_credit'];
+    if( is_array( $credit ) ) {
+      $credit = $credit[0];
+    }
+    if( $credit ) {
+  	  return preg_replace( '/<img /','<img data-credit="'.HTMLentities($credit).'" ', $html );
+    } else {
+      return $thml;
+    }
+  }
+  function custom_media_save_attachment( $attachment_id ) {
+    if ( isset( $_REQUEST['attachments'][ $attachment_id ]['custom_credit'] ) ) {
+      $custom_credit = $_REQUEST['attachments'][ $attachment_id ]['custom_credit'];
+      update_post_meta( $attachment_id, 'custom_credit', $custom_credit );
+    }
+  }
+  function add_credit_code() {
+    add_filter( 'attachment_fields_to_edit', [ $this, 'custom_media_add_credit'      ], null, 2 );
+    add_action( 'edit_attachment',           [ $this, 'custom_media_save_attachment' ] );
+    add_filter('get_image_tag',              [ $this, 'include_credit_as_data_attribute' ], 0, 4);
   }
 }
 
