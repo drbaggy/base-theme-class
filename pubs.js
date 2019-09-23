@@ -8,6 +8,8 @@
       if( h.match(/<label class="earlier">/) ) {
         $(x).find('label').last().after('<label class="earlier visible"><span>Earlier</span></label>');
       }
+      var n = $(x).find('.references input[checked="checked"]').closest("label").prevAll("label").length;
+      $(x).find('ul').eq(n).show().siblings("ul").hide();
     });
   }
 
