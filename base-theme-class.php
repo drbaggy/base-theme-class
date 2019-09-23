@@ -1082,9 +1082,22 @@ class BaseThemeClass {
       if( !is_array( $meta ) ) {
         $meta = [];
       }
-      $return[] = array_merge( $meta, [ 'url' => get_permalink( $post ), 'title' => $post->post_title, 'ID' => $post->ID, 'name' => $post->post_name ] );
+      $return[] = array_merge( $meta, [ 'url' => get_permalink( $post ), 'title' => $post->post_title, 'ID' => $post->ID, 'post_name' => $post->post_name ] );
     }
     return $return;
+  }
+
+  function get_entries_light( $type, $extra = array(), $keys = array() ) {
+    $get_posts = new WP_Query;
+    $entries = $get_posts->query( array_merge( ['posts_per_page'=>-1,'post_type'=>$type], $extra ) );
+    $munged = $this->fetch_meta( $entries, $keys );
+    $t = array_map( function( $x ) use ($munged) {
+      return array_merge( $munged[$x->ID], [
+        'url' => get_permalink( $x ), 'title' => $x->post_title,
+        'content' => $x->post_content, 'ID' => $x->ID, 'name' => $x->post_name ]
+      );
+    }, $entries );
+    return $t;
   }
 
 //----------------------------------------------------------------------
@@ -1230,12 +1243,7 @@ class BaseThemeClass {
     add_filter('get_image_tag',              [ $this, 'include_credit_as_data_attribute' ], 0, 4);
   }
 
-  function augment_objects( $objects, $field_names ) {
-    $return_scalar = 0;
-    if( ! is_array($objects) ) {
-      $return_scalar = 1;
-      $objects = [$objects];
-    }
+  function fetch_meta( $objects, $field_names ) {
     $ids = array_map( function($o) { return $o->ID; }, $objects );
     global $wpdb;
     $res = $wpdb->dbh->query( 'select post_id,meta_key,meta_value from ' . $wpdb->prefix . 'postmeta
@@ -1245,6 +1253,16 @@ class BaseThemeClass {
     foreach( $res->fetch_all( MYSQLI_ASSOC ) as $row ) {
       $mapped[$row['post_id']][$row['meta_key']] = $row['meta_value'];
     }
+    return $mapped;
+  }
+
+  function augment_objects( $objects, $field_names ) {
+    $return_scalar = 0;
+    if( ! is_array($objects) ) {
+      $return_scalar = 1;
+      $objects = [$objects];
+    }
+    $mapped = $this->fetch_meta( $objects, $field_names );
     foreach( $objects as $o ) {
       $o->comment_count = $mapped[$o->ID];
     }
