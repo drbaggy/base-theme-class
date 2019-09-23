@@ -1089,7 +1089,9 @@ class BaseThemeClass {
 
   function get_entries_light( $type, $extra = array(), $keys = array() ) {
     $get_posts = new WP_Query;
-    $entries = $get_posts->query( array_merge( ['posts_per_page'=>-1,'post_type'=>$type], $extra ) );
+    error_log( memory_get_usage() );
+    $entries = $get_posts->query( array_merge( ['cache_results'=>false,'update_post_term_cache'=>false,'update_post_meta_cache'=>false,'posts_per_page'=>-1,'post_type'=>$type], $extra ) );
+    error_log( memory_get_usage() );
     $munged = $this->fetch_meta( $entries, $keys );
     $t = array_map( function( $x ) use ($munged) {
       return array_merge( $munged[$x->ID], [
@@ -1097,6 +1099,7 @@ class BaseThemeClass {
         'content' => $x->post_content, 'ID' => $x->ID, 'name' => $x->post_name ]
       );
     }, $entries );
+    error_log( memory_get_usage() );
     return $t;
   }
 
