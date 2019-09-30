@@ -1054,7 +1054,7 @@ class BaseThemeClass {
   function output_page( $page_type ) {
     get_header();
     global $post;
-    $extra = ['ID'=>get_the_ID(), 'url'=>get_permalink(),'title'=>the_title('','',false), 'content' => $post->post_content ];
+    $extra = ['ID'=>get_the_ID(), 'url'=>get_permalink(),'title'=>the_title('','',false), 'page_content' => $post->post_content ];
     if( is_array( get_fields() ) ) {
       $this->output( $page_type, array_merge(get_fields(),$extra) );
     } else {
