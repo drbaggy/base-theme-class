@@ -59,6 +59,7 @@ const EXTRA_SETUP = [
   'medium_editor'    => [
     'standard_buttons' => [ 'bold', 'italic', 'subscript', 'superscript', 'removeFormat' ],
     'other_options'    => [ 'disableReturn', 'disableDoubleReturn', 'disableExtraSpaces' ],
+    'custom_buttons'   => [],
   ],
 ];
 
@@ -72,8 +73,8 @@ const DEFAULT_DEFN = [
   ],
   'DEFAULT_TYPE'  => 'page', // We need to know what type to default to as removing posts!
   'STYLES'        => [],     // Associate array of CSS files (key/filename)
-  'SCRIPTS'       => [ 'pubs' => ['/wp-content/plugins/base-theme-class/pubs.js',false] ],      // Associate array of JS files  (key/filename)
-  'ADMIN_SCRIPTS' => [],      // Associate array of JS files  (key/filename)
+  'SCRIPTS'       => [ 'pubs'  => [ '/wp-content/plugins/base-theme-class/pubs.js', false ]  ],      // Associate array of JS files  (key/filename)
+  'ADMIN_SCRIPTS' => [ 'tweak' => '/wp-content/plugins/base-theme-class/admin.js' ],      // Associate array of JS files  (key/filename)
   'ADMIN_STYLES'  => []      // Associate array of JS files  (key/filename)
 ];
 
@@ -154,8 +155,8 @@ class BaseThemeClass {
 //----------------------------------------------------------------------
 
   function add_my_scripts_and_stylesheets() {
-    add_action( 'wp_enqueue_scripts',         array( $this, 'enqueue_scripts'  ), PHP_INT_MAX );
-    add_action( 'enqueue_block_editor_assets',         array( $this, 'enqueue_admin_scripts'  ), PHP_INT_MAX );
+    add_action( 'wp_enqueue_scripts',     array( $this, 'enqueue_scripts'        ), PHP_INT_MAX );
+    add_action( 'admin_enqueue_scripts',  array( $this, 'enqueue_admin_scripts'  ), PHP_INT_MAX );
     return $this;
   }
 
@@ -172,20 +173,24 @@ class BaseThemeClass {
     }
     // Push scripts into footer...
     if( isset( $this->defn[ 'SCRIPTS' ] ) ) {
-      foreach( $this->defn[ 'SCRIPTS' ] as $key => $name ) {
-        $flag = true;
-        if( is_array($name) ) {
-          list($name,$flag) = $name;
+      foreach( $this->defn[ 'SCRIPTS' ] as $key => $conf ) {
+        if( is_array($conf) ) {
+          $name = $conf[0];
+          $flag = $conf[1];
+        } else {
+          $name = $conf;
+          $flag = true;
         }
         if( preg_match( '/^(https?:\/)?\//', $name ) ){
-          wp_enqueue_script( $key, $name,array(),null,$flag);
+          wp_enqueue_script( $key, $name,                                  array(),null,$flag);
         } else {
           wp_enqueue_script( $key, $this->template_directory_uri.'/'.$name,array(),null,$flag);
         }
       }
     }
   }
-  public function enqueue_admin_scripts() {
+  public function enqueue_admin_scripts( $hook = '' ) {
+    global $post_type;
     if( isset( $this->defn[ 'ADMIN_STYLES' ] ) ) {
       foreach( $this->defn[ 'ADMIN_STYLES' ] as $key => $name ) {
         if( preg_match( '/^(https?:\/)?\//', $name ) ){
@@ -197,11 +202,32 @@ class BaseThemeClass {
     }
     // Push scripts into footer...
     if( isset( $this->defn[ 'ADMIN_SCRIPTS' ] ) ) {
-      foreach( $this->defn[ 'ADMIN_SCRIPTS' ] as $key => $name ) {
-        if( preg_match( '/^(https?:\/)?\//', $name ) ){
-          wp_enqueue_script( $key, $name,array(),null,true);
+      foreach( $this->defn[ 'ADMIN_SCRIPTS' ] as $key => $conf ) {
+        if( is_array($conf) ) {
+          $name   = $conf[0];
+          $flag   = $conf[1];
+          $filter = sizeof($conf)>2 ? $conf[2] : [];
         } else {
-          wp_enqueue_script( $key, $this->template_directory_uri.'/'.$name,array(),null,true);
+          $name = $conf;
+          $flag = true;
+          $filter = [];
+        }
+        if( sizeof($filter) ) {
+          $skip = true;
+          foreach( $filter as $role ) {
+            if( current_user_can( $role ) ) {
+              $skip = false;
+              break;
+            }
+          }
+          if( $skip ) {
+            continue;
+          }
+        }
+        if( preg_match( '/^(https?:\/)?\//', $name ) ){
+          wp_enqueue_script( $key, $name,array(),null,$flag);
+        } else {
+          wp_enqueue_script( $key, $this->template_directory_uri.'/'.$name,array(),null,$flag);
         }
       }
     }
@@ -473,7 +499,10 @@ class BaseThemeClass {
     foreach( $fields as $field => $def ) {
       $code = isset( $def['code'] ) ? $def['code'] : $this->cr( $field ); // Auto generate code for field, along with name etc..
       $me = ['key'=>'field_'.$prefix.$code, 'label' => $field, 'name' => $code, 'layout' => 'row' ];
-      if( array_key_exists( $def['type'], EXTRA_SETUP ) ) {
+      if( ! array_key_exists( 'type', $def ) ) {
+        error_log( "$prefix - $code - type missing )" );
+      }
+      if( array_key_exists( 'type', $def ) && array_key_exists( $def['type'], EXTRA_SETUP ) ) {
         $me = array_merge( $me, EXTRA_SETUP[ $def['type'] ] );
       }
       if( is_array( $def ) ) {
