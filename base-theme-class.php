@@ -71,11 +71,11 @@ const DEFAULT_DEFN = [
     // default - default value
     // description - help text appears under
   ],
-  'DEFAULT_TYPE'  => 'page', // We need to know what type to default to as removing posts!
-  'STYLES'        => [],     // Associate array of CSS files (key/filename)
+  'DEFAULT_TYPE'  => 'page',    // We need to know what type to default to as removing posts!
+  'STYLES'        => [],        // Associate array of CSS files (key/filename)
   'SCRIPTS'       => [ 'pubs'  => [ '/wp-content/plugins/base-theme-class/pubs.js', false ]  ],      // Associate array of JS files  (key/filename)
-  'ADMIN_SCRIPTS' => [ 'tweak' => '/wp-content/plugins/base-theme-class/admin.js' ],      // Associate array of JS files  (key/filename)
-  'ADMIN_STYLES'  => []      // Associate array of JS files  (key/filename)
+  'ADMIN_SCRIPTS' => [ ],       // Associate array of JS files  (key/filename)
+  'ADMIN_STYLES'  => [ ],       // Associate array of CSS files  (key/filename)
 ];
 
 class BaseThemeClass {
