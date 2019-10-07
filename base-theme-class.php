@@ -1,5 +1,5 @@
 <?php
-/* XX1
+/*
 +----------------------------------------------------------------------
 | Copyright (c) 2018 Genome Research Ltd.
 | This is part of the Wellcome Sanger Institute extensions to
@@ -71,11 +71,11 @@ const DEFAULT_DEFN = [
     // default - default value
     // description - help text appears under
   ],
-  'DEFAULT_TYPE'  => 'page',    // We need to know what type to default to as removing posts!
-  'STYLES'        => [],        // Associate array of CSS files (key/filename)
+  'DEFAULT_TYPE'  => 'page',  // We need to know what type to default to as removing posts!
+  'STYLES'        => [],      // Associate array of CSS files (key/filename)
   'SCRIPTS'       => [ 'pubs'  => [ '/wp-content/plugins/base-theme-class/pubs.js', false ]  ],      // Associate array of JS files  (key/filename)
-  'ADMIN_SCRIPTS' => [ ],       // Associate array of JS files  (key/filename)
-  'ADMIN_STYLES'  => [ ],       // Associate array of CSS files  (key/filename)
+  'ADMIN_SCRIPTS' => [],      // Associate array of JS files  (key/filename)
+  'ADMIN_STYLES'  => [],      // Associate array of JS files  (key/filename)
 ];
 
 class BaseThemeClass {
@@ -91,8 +91,10 @@ class BaseThemeClass {
   protected $scalar_methods;
   protected $date_format;
   protected $range_format;
+  protected $custom_types;
 
   public function __construct( $defn ) {
+    $this->custom_types = [];
     $this->defn = $defn;
     $this->date_format = 'F jS Y';
 //                          //year diff               // month diff            // day diff            // same day!
@@ -116,7 +118,8 @@ class BaseThemeClass {
          ->register_short_codes()
          // The following is experimental - creating a new sub-editor role [[ please ignore at the moment ]]
          //->register_new_role()
-         //->allow_authors_to_add_authors()
+         ->enable_co_authors_plus_on_all_post_types()
+         ->allow_multiple_authors()
          ->add_credit_code()
          ;
   }
@@ -525,6 +528,7 @@ class BaseThemeClass {
     $plural     = isset( $def['plural'] ) ? $def['plural'] : $this->pl( $name );
     $code       = isset( $def['code']   ) ? $def['code']   : $this->cr( $name );
     $lc         = strtolower($name);
+    $this->custom_types[] = $code;
 
     $new_item   = __("New $lc");
     $edit_item  = __("Edit $lc");
@@ -600,15 +604,22 @@ class BaseThemeClass {
   function create_custom_theme_params( $wp_customize ) {
     $params = [ 'email_domain' => [
       'type'        => 'text',
-      'section'     => 'title_tagline',
+      'section'     => 'base-theme-class',
       'default'     => 'mydomainname.org.uk',
       'description' => 'Specify the domain for email addresses.'
     ], 'publication_options' => [
       'type'        => 'text',
-      'section'     => 'title_tagline',
+      'section'     => 'base-theme-class',
       'default'     => '',
       'description' => 'Options for publications listings',
+    ], 'coauthor_options' => [
+      'type'        => 'radio',
+      'choices'     => [ 'admin' => 'Administrator', 'owner' => 'Owner', 'author' => 'Author' ],
+      'section'     => 'base-theme-class',
+      'default'     => 'admin',
+      'description' => 'Adding authors is restricted to',
     ] ];
+    $wp_customize->add_section( 'base-theme-class', [ 'title' => __( 'Base theme class settings'), 'priority' => 30 ] );
     if( isset( $this->defn[ 'PARAMETERS' ] ) ) {
       $params = array_merge( $params, $this->defn[ 'PARAMETERS' ] );
     }
@@ -616,16 +627,18 @@ class BaseThemeClass {
       $name = isset( $def['name'] ) ? $def['name'] : $this->hr( $par );
       $type = isset( $def['type'] ) ? $def['type'] : 'text';
       $sanitize = 'sanitize_text_field';
-      $wp_customize->add_setting( $par, array(
-        'default'           => isset( $def['default'] ) ? $def['default'] : '',
-        'sanitize_callback' => $sanitize
-      ) );
-      $wp_customize->add_control( $par, array(
+      $options =  [ 'default'           => isset( $def['default'] ) ? $def['default'] : '' ];
+      if( $type === 'text' ) $options['sanitize_callback'] = 'sanitize_text_field';
+      $wp_customize->add_setting( $par, $options );
+      $options = [
         'type'        => $type,
-        'section'     => $def['section'],
         'label'       => __( $name ),
         'description' => __( isset( $def['description'] ) ? $def['description'] : '' )
-      ));
+      ];
+      foreach( [ 'section', 'choices' ] as $k ) {
+        if(array_key_exists($k,$def) ) {  $options[$k] = $def[$k]; }
+      }
+      $wp_customize->add_control( $par, $options );
     }
   }
 
@@ -1216,25 +1229,6 @@ class BaseThemeClass {
     return $this;
   }
 
-  // Wrapper around co-authors to allow authors to add other authors...
-  function allow_authors_to_add_authors() {
-    add_filter( 'coauthors_plus_edit_authors', [ $this, 'let_me_add_other_authors' ] );
-  }
-
-  function let_me_add_other_authors( $can_set_authors ) {
-    if( $can_set_authors ) {       // We know that the person can edit so
-      return $can_set_authors;     // return true!
-    }
-    $post         = get_post();                  // Am I an author!
-    $authors      = get_coauthors( $post->ID );  // if so let me edit permissions
-    $current_user = wp_get_current_user();       // This may not be strictly necessary
-    foreach( $authors as $auth )  {              // But it's belt and braces!
-      if( $auth->ID === $current_user->ID ) {
-        return true;
-      }
-    }
-    return false;
-  }
 
   function register_new_role() {
     register_activation_hook( __FILE__, [ $this, 'add_roles_on_plugin_activation' ] );
@@ -1300,5 +1294,51 @@ class BaseThemeClass {
     }
     return $return_scalar ? $objects[0] : $objects;
   }  
+
+// ===================================================================
+// Coauthor plus configuration ...
+// ===================================================================
+//
+// You will need to install the Co-author plus plugin to make this
+// work...
+//
+// ===================================================================
+
+  function enable_co_authors_plus_on_all_post_types() {
+    // Now get the custom_post types we generated and attach co-authors to them!
+    add_filter( 'coauthors_supported_post_types', function( $post_types ) { return array_merge( $post_types, $this->custom_types ); } );
+    // The following two lines place the co-author box on the right hand side
+    // After the main page "meta-data" publish box...
+    add_filter( 'coauthors_meta_box_context',     function() { return 'side'; } ); // Move to right hand side
+    add_filter( 'coauthors_meta_box_priority',    function() { return 'low';  } ); // Place under other boxes
+    return $this;
+  }
+  // Wrapper around co-authors to allow authors to add other authors...
+  function allow_multiple_authors() {  // This is the default one - let the owner (first author change authors)
+    $flag = get_theme_mod('coauthor_options');
+    error_log( $flag );
+    switch( $flag ) {
+      case 'owner':
+        add_filter( 'coauthors_plus_edit_authors', [ $this, 'let_owner_add_other_authors' ] );
+        break;
+      case 'author':
+        add_filter( 'coauthors_plus_edit_authors', [ $this, 'let_author_add_other_authors' ] );
+        break;
+    }
+    return $this;
+  }
+
+  function let_owner_add_other_authors( $can_set_authors ) {
+    $f = $can_set_authors || ( wp_get_current_user()->ID == get_post()->post_author );
+    return $f;
+  }
+  function let_author_add_other_authors( $can_set_authors ) {
+    if( $can_set_authors ) return true; // We know that the person can edit so return true;
+    $user_id   = wp_get_current_user()->ID;
+    foreach( get_coauthors( get_post()->ID ) as $auth )  {
+      if( $auth->ID == $user_id ) return true;
+    }
+    return false;
+  }
 }
 
