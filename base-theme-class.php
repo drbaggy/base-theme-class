@@ -1316,7 +1316,6 @@ class BaseThemeClass {
   // Wrapper around co-authors to allow authors to add other authors...
   function allow_multiple_authors() {  // This is the default one - let the owner (first author change authors)
     $flag = get_theme_mod('coauthor_options');
-    error_log( $flag );
     switch( $flag ) {
       case 'owner':
         add_filter( 'coauthors_plus_edit_authors', [ $this, 'let_owner_add_other_authors' ] );
