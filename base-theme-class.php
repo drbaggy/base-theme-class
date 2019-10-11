@@ -503,7 +503,9 @@ class BaseThemeClass {
       $code = isset( $def['code'] ) ? $def['code'] : $this->cr( $field ); // Auto generate code for field, along with name etc..
       $me = ['key'=>'field_'.$prefix.$code, 'label' => $field, 'name' => $code, 'layout' => 'row' ];
       if( ! array_key_exists( 'type', $def ) ) {
-        error_log( "$prefix - $code - type missing )" );
+        error_log( "                                                                                        " );
+        error_log( "BASE THEME CLASS: Definition of '$code' for '$type' object - has no type defined       " );
+        error_log( "                                                                                        " );
       }
       if( array_key_exists( 'type', $def ) && array_key_exists( $def['type'], EXTRA_SETUP ) ) {
         $me = array_merge( $me, EXTRA_SETUP[ $def['type'] ] );
