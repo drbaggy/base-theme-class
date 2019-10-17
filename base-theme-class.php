@@ -152,11 +152,27 @@ class BaseThemeClass {
     return $this;
   }
 
-//----------------------------------------------------------------------
-// Add CSS/javascript files from definition list...
+//======================================================================
+//
+// Add CSS/javascript files condigured in the class "DEFN" constant
+//
+// $this->add_my_scripts_and_stylesheets() in class initialization
+// function does this
+//
+// [enqueue_scripts and enqueue_admin_scripts are the functions which
+// do the work]
+//
 // If they start with http or / then they are treated as absolute
-// o/w they are treated relative to the template directory...
-//----------------------------------------------------------------------
+// o/w they are treated relative to the theme's template directory...
+//
+// For the javascript if the "filename" is an array the
+//  * The first element is the name of the file
+//  * The second element is the location of the JS head/foot
+//    (defaults head)
+//  * If admin script the third element is the role's for which the
+//    javascript is included.
+//
+//======================================================================
 
   function add_my_scripts_and_stylesheets() {
     add_action( 'wp_enqueue_scripts',     array( $this, 'enqueue_scripts'        ), PHP_INT_MAX );
@@ -1345,10 +1361,23 @@ class BaseThemeClass {
     return false;
   }
 
+//======================================================================
+//
+// Remove ability to delete
+//
+// Add $this->remove_ability_to_delete() in sub-class initialization
+// to make sure ALL users cannot delete
+//
+// [disable_delete is the function which does the work and is called at
+//  the init phase]
+//
+//======================================================================
+
   function remove_ability_to_delete() {
     add_action( 'init', [ $this, 'disable_delete' ] );
     return $this;
   }
+
   function disable_delete( ) {
     $x = new WP_Roles();
     $T = $x->roles;
@@ -1360,6 +1389,18 @@ class BaseThemeClass {
     }
   }
 
+//======================================================================
+//
+// Add IDs to titles in ACF relationship and post_object field types
+//
+// $this->add_id_to_relationship_fields() in class initialization
+// function does this
+//
+// [add_id_to_title is the function which does the work and is called at
+//  the rending phase of both relationship and post_object fields]
+//
+//======================================================================
+
   function add_id_to_title( $title, $post ) {
     return $title.' ('.$post->ID.')';
   }
@@ -1369,5 +1410,4 @@ class BaseThemeClass {
     return $this;
   }
 
-// filter for every field
 }
