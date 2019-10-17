@@ -54,7 +54,7 @@
 const EXTRA_SETUP = [
   'date_picker'      => [ 'return_value' => 'Y-m-d'       ], // Return values in "mysql datetime" format
   'date_time_picker' => [ 'return_value' => 'Y-m-d H:i:s' ], //  - or relevant part of....
-  'time_picker'      => [ 'return_value' => 'H:i:s'       ], // 
+  'time_picker'      => [ 'return_value' => 'H:i:s'       ], //
   'image'            => [ 'save_format' => 'object', 'library' => 'all', 'preview_size' => 'large' ],
   'medium_editor'    => [
     'standard_buttons' => [ 'bold', 'italic', 'subscript', 'superscript', 'removeFormat' ],
@@ -346,7 +346,7 @@ class BaseThemeClass {
 
   function block_render( $block, $content = '', $is_preview = false, $post_id = 0 ) {
     $template_code = 'block-'.$this->cr( $block['title'] );
-    
+
     print $this->render(
       $template_code,
       array_merge(
@@ -355,7 +355,7 @@ class BaseThemeClass {
       )
     );
   }
-  
+
   function define_block( $name, $fields, $extra ) {
     if( ! function_exists('acf_register_block_type') ) {
       return $this->show_error( 'ACF plugin not installed or does not support blocks', true );
@@ -450,7 +450,7 @@ class BaseThemeClass {
 
     if( array_key_exists( 'title_template', $extra ) ) {
       add_filter( 'wp_insert_post_data', function( $post_data ) use ($type,$prefix,$extra) {
-        if( $post_data[ 'post_type' ] === $type && array_key_exists( 'acf', $_POST ) ) { 
+        if( $post_data[ 'post_type' ] === $type && array_key_exists( 'acf', $_POST ) ) {
           $post_data[ 'post_title' ] = preg_replace_callback( '/\[\[([.\w]+)\]\]/',
             function( $m ) use ( $prefix ) {
               $t = $_POST['acf'];
@@ -1198,7 +1198,7 @@ class BaseThemeClass {
 
   function content_editor_filter( ) {
     global $wp_query;
-    if( ! is_admin() ) { 
+    if( ! is_admin() ) {
       return;
     }
     $user = wp_get_current_user();
@@ -1295,7 +1295,7 @@ class BaseThemeClass {
       $o->comment_count = $mapped[$o->ID];
     }
     return $return_scalar ? $objects[0] : $objects;
-  }  
+  }
 
 // ===================================================================
 // Coauthor plus configuration ...
@@ -1315,6 +1315,7 @@ class BaseThemeClass {
     add_filter( 'coauthors_meta_box_priority',    function() { return 'low';  } ); // Place under other boxes
     return $this;
   }
+
   // Wrapper around co-authors to allow authors to add other authors...
   function allow_multiple_authors() {  // This is the default one - let the owner (first author change authors)
     $flag = get_theme_mod('coauthor_options');
@@ -1341,5 +1342,20 @@ class BaseThemeClass {
     }
     return false;
   }
-}
 
+  function remove_ability_to_delete() {
+    add_action( 'init', [ $this, 'disable_delete' ] );
+    return $this;
+  }
+  function disable_delete( ) {
+    $x = new WP_Roles();
+    $T = $x->roles;
+    foreach( $T as $role_name => $role_info ) {
+      $r = get_role( $role_name );
+      foreach( array_filter( $role_info['capabilities'], function( $k ) { return substr($k,0,7) == 'delete_'; }, ARRAY_FILTER_USE_KEY  ) as $cap => $_) {
+        $r->remove_cap( $cap );
+      }
+    }
+  }
+
+}
