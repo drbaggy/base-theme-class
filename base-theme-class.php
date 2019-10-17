@@ -121,6 +121,7 @@ class BaseThemeClass {
          ->enable_co_authors_plus_on_all_post_types()
          ->allow_multiple_authors()
          ->add_credit_code()
+         ->add_id_to_relationship_fields()
          ;
   }
 
@@ -1268,7 +1269,8 @@ class BaseThemeClass {
   function add_credit_code() {
     add_filter( 'attachment_fields_to_edit', [ $this, 'custom_media_add_credit'      ], null, 2 );
     add_action( 'edit_attachment',           [ $this, 'custom_media_save_attachment' ] );
-    add_filter('get_image_tag',              [ $this, 'include_credit_as_data_attribute' ], 0, 4);
+    add_filter( 'get_image_tag',             [ $this, 'include_credit_as_data_attribute' ], 0, 4);
+    return $this;
   }
 
   function fetch_meta( $objects, $field_names ) {
@@ -1358,4 +1360,14 @@ class BaseThemeClass {
     }
   }
 
+  function add_id_to_title( $title, $post ) {
+    return $title.' ('.$post->ID.')';
+  }
+  function add_id_to_relationship_fields() {
+    add_filter('acf/fields/relationship/result', [$this, 'add_id_to_title'], 10, 2);
+    add_filter('acf/fields/post_object/result',  [$this, 'add_id_to_title'], 10, 2);
+    return $this;
+  }
+
+// filter for every field
 }
