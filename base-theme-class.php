@@ -1315,14 +1315,35 @@ class BaseThemeClass {
     return $return_scalar ? $objects[0] : $objects;
   }
 
-// ===================================================================
-// Coauthor plus configuration ...
-// ===================================================================
+//======================================================================
+//
+// Co-author plus configuration
+//
+//----------------------------------------------------------------------
 //
 // You will need to install the Co-author plus plugin to make this
 // work...
 //
-// ===================================================================
+//----------------------------------------------------------------------
+//
+// Along with the configuration for the theme this does three things:
+// 
+// * Enables co-authors plus on all post types (including custom types)
+// * Moves the co-authors plus configuration to the bottom of the right
+//   hand side navigation panel
+//
+//   [ These two are added by $this->enable_co_authors_plus_on_all_post_types() ]
+//
+// * Tweak co-authors plus configuration to allow one of:
+//   * Admins can add/remove authors
+//   * Owners can add/remove authors
+//   * Authors can add/remove authors [ Can steal posts! ]
+//
+//   [ This functionality is added by calling $this->allow_multiple_authors(),
+//     and configured in the web interface with co-authors
+//     theme customisation ]
+//
+//======================================================================
 
   function enable_co_authors_plus_on_all_post_types() {
     // Now get the custom_post types we generated and attach co-authors to them!
@@ -1365,6 +1386,8 @@ class BaseThemeClass {
 //
 // Remove ability to delete
 //
+//----------------------------------------------------------------------
+//
 // Add $this->remove_ability_to_delete() in sub-class initialization
 // to make sure ALL users cannot delete
 //
@@ -1392,6 +1415,8 @@ class BaseThemeClass {
 //======================================================================
 //
 // Add IDs to titles in ACF relationship and post_object field types
+//
+//----------------------------------------------------------------------
 //
 // $this->add_id_to_relationship_fields() in class initialization
 // function does this
