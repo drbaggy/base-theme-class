@@ -904,7 +904,7 @@ class BaseThemeClass {
 
   public function load_from_file( $filename ) {
     $full_path = $this->template_directory.'/'.$filename;
-    if( file_exists( $full_path ) ) {
+    if( file_exists( $full_path ) && substr($full_path,-4,4) == '.php' ) {
       $templates = include $full_path;
       foreach( $templates as $key => $template ) {
         $this->add_template( $key, $template );
