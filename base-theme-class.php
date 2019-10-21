@@ -1143,24 +1143,32 @@ class BaseThemeClass {
       if( !is_array( $meta ) ) {
         $meta = [];
       }
-      $return[] = array_merge( $meta, [ 'url' => get_permalink( $post ), 'title' => $post->post_title, 'ID' => $post->ID, 'post_name' => $post->post_name ] );
+      $return[] = array_merge( $meta, [
+        'ID'           => $post->ID,
+        'post_title'   => $post->post_title,
+        'post_excerpt' => $post->post_excerpt,
+        'post_content' => $post->post_content,
+        'post_url'     => get_permalink( $post ),
+        'post_name'    => $post->post_name
+      ] );
     }
     return $return;
   }
 
   function get_entries_light( $type, $extra = array(), $keys = array() ) {
     $get_posts = new WP_Query;
-    error_log( memory_get_usage() );
     $entries = $get_posts->query( array_merge( ['cache_results'=>false,'update_post_term_cache'=>false,'update_post_meta_cache'=>false,'posts_per_page'=>-1,'post_type'=>$type], $extra ) );
-    error_log( memory_get_usage() );
     $munged = $this->fetch_meta( $entries, $keys );
     $t = array_map( function( $x ) use ($munged) {
       return array_merge( $munged[$x->ID], [
-        'url' => get_permalink( $x ), 'title' => $x->post_title,
-        'content' => $x->post_content, 'ID' => $x->ID, 'name' => $x->post_name ]
+        'ID'           => $x->ID,
+        'post_title'   => $x->post_title,
+        'post_excerpt' => $x->post_excerpt,
+        'post_content' => $x->post_content,
+        'post_url'     => get_permalink( $x ),
+        'post_name'    => $x->post_name ]
       );
     }, $entries );
-    error_log( memory_get_usage() );
     return $t;
   }
 
