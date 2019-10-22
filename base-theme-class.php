@@ -122,6 +122,8 @@ class BaseThemeClass {
          ->allow_multiple_authors()
          ->add_credit_code()
          ->add_id_to_relationship_fields()
+         ->extend_at_a_glance()
+         ->reconfigure_dashboard_and_show_my_posts()
          ;
   }
 
@@ -581,6 +583,83 @@ class BaseThemeClass {
       ]
     ] );
     return $this;
+  }
+
+// The main dashboard page of the wordpress admin has an "At a glance section" which includes
+// counts of published pages and posts... This doesn't include custom post types - so we have
+// to add these - note we keep a list of custom post types in the custom_types hash (the type
+// is the key - and the values are the icon and name (singular/plural) we use this to generate
+// the markup... Which is an array of values to go in "ul > li" list elements..
+// (Elements is passed in for this script to add to!)
+
+  function extend_at_a_glance() {
+    add_filter( 'dashboard_glance_items', [ $this, 'my_custom_glance' ] );
+    return $this;
+  }
+
+  function reconfigure_dashboard_and_show_my_posts() {
+    add_action( 'wp_dashboard_setup', [ $this, 'reconfigure_dashboard' ] );
+    return $this;
+  }
+
+  function reconfigure_dashboard() {
+    global $wp_meta_boxes;
+    // Move the "side" 2nd column to the fourth column
+    $wp_meta_boxies['dashboard']['column4'] = $wp_meta_boxes['dashboard']['side'];                                      // Push 2nd column into 4th column
+    // Clear the 2nd column... and move the new widget from the bottom of the left hand column to the 2nd column!
+    $wp_meta_boxes['dashboard']['side']     = $wp_meta_boxes['dashboard']['normal'];                                    // Move first column into second column
+    //$wp_meta_boxes['dashboard']['normal']   = ['core'=>[ array_pop( $wp_meta_boxes['dashboard']['side']['core'] ) ]];   // Create new column (with last element of 3rd col)
+    $wp_meta_boxes['dashboard']['normal']   = [];
+    wp_add_dashboard_widget('custom_help_widget', 'My pages and objects', [$this, 'dashboard_my_pages_and_objects' ]);  // Add custom widget
+  }
+ 
+  function dashboard_my_pages_and_objects() {
+    $query        = new WP_Query;
+    $u   = wp_get_current_user();
+    if( is_plugin_active( 'co-authors-plus/co-authors-plus.php' ) ) { // Coauthors+ is enabled so use taxonomy information
+      $un  = $u->user_nicename; // $un = 'oauth2-mt9-sanger-ac-uk'; // TEST TO SEE OTHERS LIST!
+      $entries = $query->query( [
+        'cache_results'=>false,'update_post_term_cache'=>false,'update_post_meta_cache'=>false,'posts_per_page'=>-1,
+        'tax_query' => [[ 'taxonomy' => 'author', 'field' => 'slug', 'terms' => "cap-$un" ]],
+        'order'   => 'DESC',
+        'orderby' => 'modified',
+      ] );
+    } else { // Just look for "owned" by the current author!
+      $entries = $query->query( [
+        'cache_results' => false,'update_post_term_cache'=>false,'update_post_meta_cache'=>false,'posts_per_page'=>-1,
+        'author'        => $u->ID,
+        'order'         => 'DESC',
+        'orderby'       => 'modified',
+      ] );
+    }
+    if( sizeof( $entries ) ) { // If we have entries display them (may need to limit if more than say 40?)
+      echo '<p>You are an author of the following pages:</p><ol>';
+      foreach ( $entries as $x ) {
+        printf( '<li>%s%s: <a href="/wp-admin/post.php?post=%d&action=edit">%s (%s)</a>%s</li>',
+          $x->post_status === 'publish' ? '<strong>' : '<em>',
+          ucfirst(str_replace('_',' ',$x->post_type)),
+          $x->ID,
+          HTMLentities($x->post_title),
+          substr($x->post_modified,0,10),
+          $x->post_status === 'publish' ? '</strong>' : '</em>'
+        );
+      }
+      echo '</ol>';
+    } else { // Otherwise show we have not pages/posts...
+      echo '<p>You do not currently have any pages/posts on the Sanger website</p>';
+    }
+  }
+
+  function add_custom_post_types_to_at_a_glance( $elements ) {
+    $t = wp_count_posts( 'post' )->publish + wp_count_posts( 'page' )->publish;
+    foreach( $this->custom_types as $type => $def ) {
+      $num_posts = wp_count_posts( $type )->publish;
+      $t += $num_posts;
+      $elements[] = sprintf( '<a class="%s" href="/wp-admin/edit.php?post_type=%s">%d %s</a>',
+        $def['icon'], $type, $num_posts, _n( $def['name'], $def['names'], $num_posts ) );
+    }
+    $elements[] = "<strong>TOTAL: $t POSTS</strong>";
+    return $elements;
   }
 
 //----------------------------------------------------------------------
