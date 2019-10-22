@@ -593,9 +593,39 @@ class BaseThemeClass {
 // (Elements is passed in for this script to add to!)
 
   function extend_at_a_glance() {
-    add_filter( 'dashboard_glance_items', [ $this, 'my_custom_glance' ] );
+    add_filter( 'dashboard_glance_items', [ $this, 'add_custom_post_types_to_at_a_glance' ] );
     return $this;
   }
+
+  function add_custom_post_types_to_at_a_glance( $elements ) {
+    $t = wp_count_posts( 'post' )->publish + wp_count_posts( 'page' )->publish;
+    foreach( $this->custom_types as $type => $def ) {
+      $num_posts = wp_count_posts( $type )->publish;
+      $t += $num_posts;
+      $elements[] = sprintf( '<a class="%s" href="/wp-admin/edit.php?post_type=%s">%d %s</a>',
+        $def['icon'], $type, $num_posts, _n( $def['name'], $def['names'], $num_posts ) );
+    }
+    $elements[] = "<strong>TOTAL: $t POSTS</strong>";
+    return $elements;
+  }
+
+// Reconfigure the wordpress dashboard - the standard dashboard is OK for a single editor - but
+// we have approximately a thousand editors so we really need to re-arrange this a bit - get
+// rid of the adminy bits - and add in our special "all my stuff panel"....
+// $this->reconfigure_dashboard_and_show_my_posts()
+//     links in code to add a custom widget panel on the main dashboard
+//     page to show all content that the user has. In turn, the
+//     following method is called:
+// $this->reconfigure_dashboard()
+//     this moves the current 2nd column to the fourth column
+//     and moves the first column into the second column, and
+//     finally replaces the first column with out "my posts" panel...
+// $this->dashboard_my_pages_and_objects()
+//     Looks for entries for which I'm a co-author of (or owner of if coauthors not activated)
+//     - any type: posts, pages, custom post types - using a taxonomy query (this
+//     is how co-authors stores the "ownership" of files {or direct author query if no co-authors}
+//     This then lists the entries in reverse time order of modification
+
 
   function reconfigure_dashboard_and_show_my_posts() {
     add_action( 'wp_dashboard_setup', [ $this, 'reconfigure_dashboard' ] );
@@ -648,18 +678,6 @@ class BaseThemeClass {
     } else { // Otherwise show we have not pages/posts...
       echo '<p>You do not currently have any pages/posts on the Sanger website</p>';
     }
-  }
-
-  function add_custom_post_types_to_at_a_glance( $elements ) {
-    $t = wp_count_posts( 'post' )->publish + wp_count_posts( 'page' )->publish;
-    foreach( $this->custom_types as $type => $def ) {
-      $num_posts = wp_count_posts( $type )->publish;
-      $t += $num_posts;
-      $elements[] = sprintf( '<a class="%s" href="/wp-admin/edit.php?post_type=%s">%d %s</a>',
-        $def['icon'], $type, $num_posts, _n( $def['name'], $def['names'], $num_posts ) );
-    }
-    $elements[] = "<strong>TOTAL: $t POSTS</strong>";
-    return $elements;
   }
 
 //----------------------------------------------------------------------
