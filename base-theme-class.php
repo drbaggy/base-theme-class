@@ -468,15 +468,18 @@ class BaseThemeClass {
     if( array_key_exists( 'title_template', $extra ) ) {
       add_filter( 'wp_insert_post_data', function( $post_data ) use ($type,$prefix,$extra) {
         if( $post_data[ 'post_type' ] === $type && array_key_exists( 'acf', $_POST ) ) {
-          $post_data[ 'post_title' ] = preg_replace_callback( '/\[\[([.\w]+)\]\]/',
-            function( $m ) use ( $prefix ) {
-              $t = $_POST['acf'];
-              foreach( explode('.',$m[1]) as $k ) {
-                $t = $t[ "field_${prefix}$k" ];
-              }
-              return $t;
-            },
-            $extra['title_template'] );
+          $post_data[ 'post_title' ] = trim(preg_replace( '/\s+/', ' ',
+            preg_replace_callback( '/\[\[([.\w]+)\]\]/',
+              function( $m ) use ( $prefix ) {
+                $t = $_POST['acf'];
+                foreach( explode('.',$m[1]) as $k ) {
+                  $t = $t[ "field_${prefix}$k" ];
+                }
+                return $t;
+              },
+              $extra['title_template']
+            )
+          ));
         }
         return $post_data;
       } );
@@ -547,7 +550,6 @@ class BaseThemeClass {
     $plural     = isset( $def['plural'] ) ? $def['plural'] : $this->pl( $name );
     $code       = isset( $def['code']   ) ? $def['code']   : $this->cr( $name );
     $lc         = strtolower($name);
-    $this->custom_types[] = $code;
 
     $new_item   = __("New $lc");
     $edit_item  = __("Edit $lc");
@@ -557,6 +559,8 @@ class BaseThemeClass {
 
     // Define icon this is a dashicon icon....
     $icon       = isset( $def['icon']   ) ? $def['icon']   : 'admin-page';
+
+    $this->custom_types[ $code ] = [ 'icon' => 'dashicons-'.$icon, 'name' => $name, 'names' => $plural ];
 
     register_post_type( $code, [
       'public'       => true,
@@ -674,7 +678,7 @@ class BaseThemeClass {
 
   function remove_comments_admin() {
     add_action( 'admin_bar_menu',             array( $this, 'change_default_new_link' ), PHP_INT_MAX-1 );
-    add_action( 'admin_menu',                 array( $this, 'remove_posts_sidebar') );
+ //  add_action( 'admin_menu',                 array( $this, 'remove_posts_sidebar') );
     add_filter( 'manage_edit-post_columns',   array( $this, 'remove_post_columns') ,10,1);
     add_filter( 'manage_edit-page_columns',   array( $this, 'remove_page_columns') ,10,1);
     return $this;
@@ -702,7 +706,7 @@ class BaseThemeClass {
     $wp_admin_bar->remove_node('new-content');
     $wp_admin_bar->add_node( $new_content_node);
     $wp_admin_bar->remove_menu('comments');
-    $wp_admin_bar->remove_node('new-post');
+ //   $wp_admin_bar->remove_node('new-post');
     $wp_admin_bar->remove_menu('wp-logo');   // Not to do with posts - but good to get rid of in admin interface!
   }
 
@@ -1355,7 +1359,7 @@ class BaseThemeClass {
 
   function enable_co_authors_plus_on_all_post_types() {
     // Now get the custom_post types we generated and attach co-authors to them!
-    add_filter( 'coauthors_supported_post_types', function( $post_types ) { return array_merge( $post_types, $this->custom_types ); } );
+    add_filter( 'coauthors_supported_post_types', function( $post_types ) { return array_merge( $post_types, array_keys($this->custom_types) ); } );
     // The following two lines place the co-author box on the right hand side
     // After the main page "meta-data" publish box...
     add_filter( 'coauthors_meta_box_context',     function() { return 'side'; } ); // Move to right hand side
