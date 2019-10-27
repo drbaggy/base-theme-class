@@ -118,12 +118,12 @@ class BaseThemeClass {
          ->register_short_codes()
          // The following is experimental - creating a new sub-editor role [[ please ignore at the moment ]]
          //->register_new_role()
-         ->enable_co_authors_plus_on_all_post_types()
-         ->allow_multiple_authors()
+         ->enable_co_authors_plus_on_all_post_types()  // Enable co-authors plus on all post types
+         ->restrict_who_can_manage_authors()           // Switch to allow admins OR owners OR authors to manage authors to post
          ->add_credit_code()
-         ->add_id_to_relationship_fields()
-         ->extend_at_a_glance()
-         ->reconfigure_dashboard_and_show_my_posts()
+         ->add_augmented_relationship_labels()         // By default include post ID in relationship labels (extendable)!
+         ->extend_at_a_glance()                        // Add custom post types (and total) to at a glance panel on dashboard
+         ->reconfigure_dashboard_and_show_my_posts()   // Re-arrange dashboard layout and a "my posts" panel
          ;
   }
 
@@ -403,7 +403,7 @@ class BaseThemeClass {
       'label_placement' => isset( $extra['labels'] ) ? $extra['labels'] : 'left',
     ];
     $prefix            = isset( $extra['prefix'] ) ? $extra['prefix'].'_' : '';
-    $fg_defn['fields'] = $this->munge_fields( $prefix, $fields, $type );
+    $fg_defn['fields'] = $this->munge_fields( $prefix, $fields, $type, '' );
     register_field_group( $fg_defn );
     return $this;
   }
@@ -451,7 +451,7 @@ class BaseThemeClass {
     // Allow a prefix for type so we don't have issues of field name clash
     // across multiple types....
     $prefix         = isset( $extra['prefix'] ) ? $extra['prefix'].'_' : '';
-    $defn['fields'] = $this->munge_fields( $prefix, $fields, $type );
+    $defn['fields'] = $this->munge_fields( $prefix, $fields, $type, '' );
     // Finally register the acf group to generate the admin interface!
     register_field_group( $defn );
     if( isset( $extra['fields'] ) ) {
@@ -461,7 +461,7 @@ class BaseThemeClass {
         $defn[ 'title'            ] = $fg['title'];
         $defn[ 'menu_order'       ]++;
         $defn[ 'label_placement'  ] = isset( $fg['labels'] ) ? $fg['labels'] : 'left';
-        $defn[ 'fields'           ] = $this->munge_fields( $prefix.$fg['type'], $fg['fields'], $type );
+        $defn[ 'fields'           ] = $this->munge_fields( $prefix.$fg['type'].'_', $fg['fields'], $type, $fg['type'].'_' );
         $defn[ 'options'          ] = [ 'position' => 'normal' ];
         register_field_group( $defn );
       }
@@ -518,16 +518,16 @@ class BaseThemeClass {
   }
 
 // Nasty re-cursive code - munges fields + add sub_fields/layouts....
-  function munge_fields( $prefix, $fields, $type ) {
+  function munge_fields( $prefix, $fields, $type, $field_prefix ) {
     // and add fields to it... note we don't have complex fields here!!!
     $munged = [];
     foreach( $fields as $field => $def ) {
       $code = isset( $def['code'] ) ? $def['code'] : $this->cr( $field ); // Auto generate code for field, along with name etc..
       $me = ['key'=>'field_'.$prefix.$code, 'label' => $field, 'name' => $code, 'layout' => 'row' ];
       if( ! array_key_exists( 'type', $def ) ) {
-        error_log( "                                                                                        " );
+        error_log( "                                                                                       " );
         error_log( "BASE THEME CLASS: Definition of '$code' for '$type' object - has no type defined       " );
-        error_log( "                                                                                        " );
+        error_log( "                                                                                       " );
       }
       if( array_key_exists( 'type', $def ) && array_key_exists( $def['type'], EXTRA_SETUP ) ) {
         $me = array_merge( $me, EXTRA_SETUP[ $def['type'] ] );
@@ -536,10 +536,22 @@ class BaseThemeClass {
         $me = array_merge( $me, $def );
       }
       if( isset( $def['sub_fields'] ) ){
-        $me['sub_fields'] = $this->munge_fields( $prefix.$code.'_', $def['sub_fields'], $type );
+        $me['sub_fields'] = $this->munge_fields( $prefix.$code.'_', $def['sub_fields'], $type, $field_prefix.$code.'_' );
       }
       if( isset( $def['layouts'] ) ){
-        $me[ 'layouts' ] = $this->munge_fields(  $prefix.$code.'_', $def['layouts'], $type );
+        $me[ 'layouts' ] = $this->munge_fields(  $prefix.$code.'_', $def['layouts'], $type, $field_prefix.$code.'_' );
+      }
+      if( array_key_exists( 'admin', $def ) ) {
+        // Now we need to add the columns to the interface
+        $fn = "acf-$field_prefix$code";
+        $cn = $def['admin'] == 1 ? $me['label'] : $def['admin'];
+        add_action( 'manage_'.$type.'_posts_custom_column',   [ $this, 'acf_custom_column'        ], 10, 2  );
+        add_filter( 'manage_'.$type.'_posts_columns',         function( $columns ) use ($fn, $cn ) {
+          return array_merge( $columns, [ $fn => $cn ] );
+        });
+        add_filter( 'manage_edit-'.$type.'_sortable_columns', function( $columns ) use ($fn, $cn ) {
+          return array_merge( $columns, [ $fn => $cn ] );
+        });
       }
       $munged[]=$me;
     }
@@ -642,7 +654,7 @@ class BaseThemeClass {
     $wp_meta_boxes['dashboard']['normal']   = [];
     wp_add_dashboard_widget('custom_help_widget', 'My pages and objects', [$this, 'dashboard_my_pages_and_objects' ]);  // Add custom widget
   }
- 
+
   function dashboard_my_pages_and_objects() {
     $query        = new WP_Query;
     $u   = wp_get_current_user();
@@ -773,11 +785,15 @@ class BaseThemeClass {
 // 2) Remove the new post and comments link from this menu bar!
 //----------------------------------------------------------------------
 
-  function remove_comments_admin() {
+  function remove_posts_admin() {
     add_action( 'admin_bar_menu',             array( $this, 'change_default_new_link' ), PHP_INT_MAX-1 );
- //  add_action( 'admin_menu',                 array( $this, 'remove_posts_sidebar') );
-    add_filter( 'manage_edit-post_columns',   array( $this, 'remove_post_columns') ,10,1);
-    add_filter( 'manage_edit-page_columns',   array( $this, 'remove_page_columns') ,10,1);
+    add_action( 'admin_menu',                 array( $this, 'remove_posts_sidebar' ) );
+  }
+
+  function remove_comments_admin() {
+    add_action( 'admin_menu',                 array( $this, 'remove_comments_sidebar') );
+    add_filter( 'manage_edit-post_columns',   array( $this, 'remove_comments_columns') ,10,1);
+    add_filter( 'manage_edit-page_columns',   array( $this, 'remove_comments_columns') ,10,1);
     return $this;
   }
 
@@ -810,23 +826,25 @@ class BaseThemeClass {
 
   // Remove posts sidebar entries...
   function remove_posts_sidebar() {
+    $this->remove_sidebar_entry('edit.php');
+  }
+  // Remove comments from post/page listings...
+  function remove_comments_sidebar() {
+    $this->remove_sidebar_entry('edit-comments.php');
+  }
+  function remove_sidebar_entry( $name ) {
     global $menu;
-    $remove_menu_items = [ 'edit-comments.php', 'edit.php' ];
     end($menu);
-    while (prev($menu)){
-      if( in_array( $menu[key($menu)][2], $remove_menu_items ) ) {
-        unset($menu[key($menu)]);
+    while( prev($menu) ) {
+      if( $menu[key($menu)][2] == $name ) {
+        unset( $menu[key($menu)] );
+        return;
       }
     }
   }
 
-  // Remove columns from post/page listings...
-  function remove_post_columns($columns) {
-    unset($columns['comments']);
-    return $columns;
-  }
-
-  function remove_page_columns($columns) {
+  // Remove comments from post/page listings...
+  function remove_comments_column($columns) {
     unset($columns['comments']);
     return $columns;
   }
@@ -1436,7 +1454,7 @@ class BaseThemeClass {
 //----------------------------------------------------------------------
 //
 // Along with the configuration for the theme this does three things:
-// 
+//
 // * Enables co-authors plus on all post types (including custom types)
 // * Moves the co-authors plus configuration to the bottom of the right
 //   hand side navigation panel
@@ -1465,7 +1483,7 @@ class BaseThemeClass {
   }
 
   // Wrapper around co-authors to allow authors to add other authors...
-  function allow_multiple_authors() {  // This is the default one - let the owner (first author change authors)
+  function restrict_who_can_manage_authors() {  // This is the default one - let the owner (first author change authors)
     $flag = get_theme_mod('coauthor_options');
     switch( $flag ) {
       case 'owner':
@@ -1535,13 +1553,27 @@ class BaseThemeClass {
 //
 //======================================================================
 
-  function add_id_to_title( $title, $post ) {
+  function augment_relationship_labels( $title, $post ) {
     return $title.' ('.$post->ID.')';
   }
-  function add_id_to_relationship_fields() {
-    add_filter('acf/fields/relationship/result', [$this, 'add_id_to_title'], 10, 2);
-    add_filter('acf/fields/post_object/result',  [$this, 'add_id_to_title'], 10, 2);
+
+  function add_augmented_relationship_labels() {
+    add_filter('acf/fields/relationship/result', [$this, 'augment_relationship_labels'], 10, 2);
+    add_filter('acf/fields/post_object/result',  [$this, 'augment_relationship_labels'], 10, 2);
     return $this;
   }
 
+  function acf_custom_column( $column, $post_id ) {
+    $v = get_post_meta( $post_id, substr($column,4), true ); error_log( "$column - $post_id - ".print_r($v,1));
+    $v = get_field( substr($column,4), $post_id, true );     error_log( "$column - $post_id - ".print_r($v,1));
+    if( !is_array($v) ) {
+      $v = [$v];
+    }
+    echo implode( '; ', array_map( function($s) {
+      if( is_object($s) ) {
+        return $s->post_title;
+      }
+      return preg_replace( '/^(\d{4})[-\/]?(\d\d)[-\/]?(\d\d).*$/', '$1-$2-$3', $s );
+    }, $v ));
+  }
 }
