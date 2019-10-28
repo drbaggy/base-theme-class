@@ -576,7 +576,10 @@ class BaseThemeClass {
 
     $this->custom_types[ $code ] = [ 'icon' => 'dashicons-'.$icon, 'name' => $name, 'names' => $plural ];
 
-    register_post_type( $code, [
+    $add = array_key_exists('add',$def)
+         ? [ 'map_meta_cap' => true,'capability_type' => 'post', 'capabilities' => [ 'create_posts' => $def['add'] ], ]
+         : [];
+    register_post_type( $code, array_merge($add,[
       'public'       => true,
       'has_archive'  => true,
       'menu_icon'    => 'dashicons-'.$icon,
@@ -593,7 +596,7 @@ class BaseThemeClass {
         'singular_name'    => __($name),
         'name'             => __($plural)
       ]
-    ] );
+    ]) );
     return $this;
   }
 
@@ -1537,8 +1540,12 @@ class BaseThemeClass {
     $T = $x->roles;
     foreach( $T as $role_name => $role_info ) {
       $r = get_role( $role_name );
-      foreach( array_filter( $role_info['capabilities'], function( $k ) { return substr($k,0,7) == 'delete_'; }, ARRAY_FILTER_USE_KEY  ) as $cap => $_) {
+      foreach( array_filter( $role_info['capabilities'], function( $k ) { return substr($k,0,7) == 'delete_' && $k != 'delete_themes'; }, ARRAY_FILTER_USE_KEY  ) as $cap => $_) {
         $r->remove_cap( $cap );
+      }
+      ### REMOVE HACK ###
+      if( $role_name == 'administrator' ) {
+        $r->add_cap( 'delete_themes', true );
       }
     }
   }
