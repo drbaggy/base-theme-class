@@ -676,10 +676,14 @@ class BaseThemeClass {
     }
     if( sizeof( $entries ) ) { // If we have entries display them (may need to limit if more than say 40?)
       echo '<p>You are an author of the following pages:</p><ol>';
+      $labels = [];
       foreach ( $entries as $x ) {
+        if( !array_key_exists($x->post_type, $labels ) ) {
+          $labels[$x->post_type] = get_post_type_labels(get_post_type_object($x->post_type))->singular_name;
+        }
         printf( '<li>%s%s: <a href="/wp-admin/post.php?post=%d&action=edit">%s (%s)</a>%s</li>',
           $x->post_status === 'publish' ? '<strong>' : '<em>',
-          ucfirst(str_replace('_',' ',$x->post_type)),
+          $labels[$x->post_type],
           $x->ID,
           HTMLentities($x->post_title),
           substr($x->post_modified,0,10),
