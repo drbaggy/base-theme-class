@@ -840,6 +840,7 @@ class BaseThemeClass {
     $this->remove_sidebar_entry('edit-comments.php');
   }
   function remove_sidebar_entry( $name ) {
+    error_log("CALLED - $name");
     global $menu;
     end($menu);
     while( prev($menu) ) {
@@ -1575,8 +1576,8 @@ class BaseThemeClass {
   }
 
   function acf_custom_column( $column, $post_id ) {
-    $v = get_post_meta( $post_id, substr($column,4), true ); error_log( "$column - $post_id - ".print_r($v,1));
-    $v = get_field( substr($column,4), $post_id, true );     error_log( "$column - $post_id - ".print_r($v,1));
+    $v = get_post_meta( $post_id, substr($column,4), true );
+    $v = get_field( substr($column,4), $post_id, true );
     if( !is_array($v) ) {
       $v = [$v];
     }
