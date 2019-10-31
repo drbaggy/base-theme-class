@@ -840,7 +840,6 @@ class BaseThemeClass {
     $this->remove_sidebar_entry('edit-comments.php');
   }
   function remove_sidebar_entry( $name ) {
-    error_log("CALLED - $name");
     global $menu;
     end($menu);
     while( prev($menu) ) {
@@ -1505,11 +1504,14 @@ class BaseThemeClass {
   }
 
   function let_owner_add_other_authors( $can_set_authors ) {
-    $f = $can_set_authors || ( wp_get_current_user()->ID == get_post()->post_author );
+    $f = $can_set_authors || ( get_post() && wp_get_current_user()->ID == get_post()->post_author );
     return $f;
   }
   function let_author_add_other_authors( $can_set_authors ) {
     if( $can_set_authors ) return true; // We know that the person can edit so return true;
+    if( ! get_post() ) {
+      return false;
+    }
     $user_id   = wp_get_current_user()->ID;
     foreach( get_coauthors( get_post()->ID ) as $auth )  {
       if( $auth->ID == $user_id ) return true;
