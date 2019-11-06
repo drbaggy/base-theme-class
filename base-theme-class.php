@@ -74,7 +74,7 @@ const DEFAULT_DEFN = [
   'DEFAULT_TYPE'  => 'page',  // We need to know what type to default to as removing posts!
   'STYLES'        => [],      // Associate array of CSS files (key/filename)
   'SCRIPTS'       => [ 'pubs'  => [ '/wp-content/plugins/base-theme-class/pubs.js', false ]  ],      // Associate array of JS files  (key/filename)
-  'ADMIN_SCRIPTS' => [],      // Associate array of JS files  (key/filename)
+  'ADMIN_SCRIPTS' => [ '/wp-content/plugins/base-theme-class/admin.js'                       ],      // Associate array of JS files  (key/filename)
   'ADMIN_STYLES'  => [],      // Associate array of JS files  (key/filename)
 ];
 
@@ -86,6 +86,7 @@ class BaseThemeClass {
   protected $templates;
   protected $preprocessors;
   protected $postprocessors;
+  protected $switchers;
   protected $debug;
   protected $array_methods;
   protected $scalar_methods;
@@ -644,6 +645,12 @@ class BaseThemeClass {
 
   function reconfigure_dashboard_and_show_my_posts() {
     add_action( 'wp_dashboard_setup', [ $this, 'reconfigure_dashboard' ] );
+    add_action( 'rest_api_init', function () {
+       register_rest_route( 'base', 'search/(?P<s>.+)', array(
+         'methods' => 'GET',
+         'callback' => [ $this, 'my_admin_search' ] 
+       ) );
+    } );
     return $this;
   }
 
@@ -656,8 +663,36 @@ class BaseThemeClass {
     //$wp_meta_boxes['dashboard']['normal']   = ['core'=>[ array_pop( $wp_meta_boxes['dashboard']['side']['core'] ) ]];   // Create new column (with last element of 3rd col)
     $wp_meta_boxes['dashboard']['normal']   = [];
     wp_add_dashboard_widget('custom_help_widget', 'My pages and objects', [$this, 'dashboard_my_pages_and_objects' ]);  // Add custom widget
+    wp_add_dashboard_widget('custom_search_widget', 'Quick Search',             [$this, 'custom_search_box' ]);  // Add custom widget
   }
 
+  function my_admin_search( $data ) {
+    $q = new WP_Query;
+    $labels = [];
+    return array_map(
+       function($r) use ($labels) {
+         if( !array_key_exists($r->post_type, $labels ) ) {
+           $labels[$r->post_type] = get_post_type_labels(get_post_type_object($r->post_type))->singular_name;
+         }
+         return [ '/wp-admin/post.php?post='.$r->ID.'&action=edit', $r->post_title, $labels[$r->post_type]];
+       }, 
+       $q->query( [
+         'cache_results'          => false,
+         'update_post_term_cache' => false,
+         'update_post_meta_cache' => false,
+         'posts_per_page'         => 10,
+         'post_type'              => 'any',
+         'post_status'            => [ 'draft', 'publish' ],
+         's'                      => urldecode($data['s']),
+       ] )
+    );
+  }
+
+  function custom_search_box() {
+    echo '<input id="searchbox" type="text" name="in" style="width:100%" />';
+    echo '<ul id="search-results"></ul>';
+    echo '<p><em>Enter at least 3 characters to search through all posts</em></p>';
+  }
   function dashboard_my_pages_and_objects() {
     $query        = new WP_Query;
     $u   = wp_get_current_user();
@@ -1009,6 +1044,9 @@ class BaseThemeClass {
     }
     if( is_array( $template ) ) {
       if( array_key_exists( 'template', $template ) ){
+        if( array_key_exists( 'switch', $template ) ) {
+          $this->add_switcher( $key, $template['switch'] );
+        }
         if( array_key_exists( 'pre', $template ) ) {
           $this->add_preprocessor( $key, $template['pre'] );
         }
@@ -1063,10 +1101,12 @@ class BaseThemeClass {
 
   public function dump_templates( ) {
     print '<pre style="height:800px;overflow:scrollbar">';
-    print '<h4>Templates</h4>';
-    print_r( $this->templates );
+    print '<h4>Switchers</h4>';
+    print_r( $this->switchers );
     print '<h4>Pre-processors</h4>';
     print_r( $this->preprocessors );
+    print '<h4>Templates</h4>';
+    print_r( $this->templates );
     print '<h4>Post-processors</h4>';
     print_r( $this->postprocessors );
     print '</pre>';
@@ -1074,6 +1114,11 @@ class BaseThemeClass {
   }
 
 // Pre-processor code...
+
+  public function add_switcher( $key, $function ) {
+    $this->switchers[ $key ] = $function;
+    return $this;
+  }
 
   public function add_preprocessor( $key, $function ) {
     $this->preprocessors[ $key ] = $function;
@@ -1123,6 +1168,16 @@ class BaseThemeClass {
     }
     // Apply any pre-processors to data - thie munges/amends the data-structure
     // being passed...
+    if( array_key_exists( $template_code, $this->switchers ) ) {
+      $function = $this->switchers[$template_code];
+      $t = $function( $data, $this );
+      if( $t === false ) {
+        return '';
+      }
+      if( $t ) {
+        return $this->expand_template( $t, $data );
+      }
+    }
     if( array_key_exists( $template_code, $this->preprocessors ) ) {
       $function = $this->preprocessors[$template_code];
       $data = $function( $data, $this );
