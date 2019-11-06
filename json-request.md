@@ -23,7 +23,9 @@ initialized by the "rest_api_init" action....
     return $this; // This is a base class thing that "setup functions" are chained so have to return "self"
   }
 
-/* This is the search function.... which is called - uses WP_Query with a parameter of "s" to search posts...
+/* This is the search function.... which is called - uses WP_Query with a
+   parameter of "s" to search posts...
+*/
 
   function my_json_search( $data ) {
     $q      = new WP_Query;
