@@ -29,7 +29,7 @@ initialized by the "rest_api_init" action....
 
   function my_json_search( $data ) {
     $q      = new WP_Query;
-    $labels = []; Cache these!!!
+    $labels = [];     // Create a cache for labels...
     return array_map( // Use array_map to mogrify the posts into a simpler JSON strucure,
                       // and return the resultant array - WordPress does the rest!
        function($r) use ($labels) {
