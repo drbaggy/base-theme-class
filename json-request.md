@@ -1,4 +1,5 @@
-#Creating a JSON request in Wordpress
+Creating a JSON request in Wordpress
+====================================
 
 A simple how to on adding a "JSON" endpoint to WordPress - hooking into the
 wordpress REST API - under "/wp-json/" - we need to define the route and the
