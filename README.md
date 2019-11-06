@@ -2,7 +2,10 @@
 
 This is a neat class based theme template plugin to enable rapid development of wordpress backed blog-less websites.
 
-* [Creating a JSON request](json-request.md)
+## Useful links
+
+* Wordpress tricks
+  * [Creating a JSON request](json-request.md)
 
 ## Features
 
