@@ -610,7 +610,17 @@ class BaseThemeClass {
 
   function extend_at_a_glance() {
     add_filter( 'dashboard_glance_items', [ $this, 'add_custom_post_types_to_at_a_glance' ] );
+    add_filter( 'dashboard_recent_posts_query_args', [ $this, 'add_custom_post_types_to_activity' ] );
     return $this;
+  }
+
+  function add_custom_post_types_to_activity( $query_args ) {
+    $query_args['post_type'] = is_array( $query_args['post_type'] )
+                             ? array_merge( $query_args['post_type'], ['page'], array_keys($this->custom_types) )
+                             : array_merge( ['post','page'], array_keys($this->custom_types) )
+                             ;
+    $query_args['posts_per_page'] = 10;
+    return $query_args;
   }
 
   function add_custom_post_types_to_at_a_glance( $elements ) {
@@ -674,7 +684,11 @@ class BaseThemeClass {
          if( !array_key_exists($r->post_type, $labels ) ) {
            $labels[$r->post_type] = get_post_type_labels(get_post_type_object($r->post_type))->singular_name;
          }
-         return [ '/wp-admin/post.php?post='.$r->ID.'&action=edit', $r->post_title, $labels[$r->post_type]];
+         return [
+           current_user_can( 'edit_post', $r->ID) ? get_edit_post_link( $r->ID ) : get_permalink( $r->ID ),
+           $r->post_title,
+           $labels[$r->post_type],
+         ];
        }, 
        $q->query( [
          'cache_results'          => false,
@@ -719,10 +733,10 @@ class BaseThemeClass {
         if( !array_key_exists($x->post_type, $labels ) ) {
           $labels[$x->post_type] = get_post_type_labels(get_post_type_object($x->post_type))->singular_name;
         }
-        printf( '<li>%s%s: <a href="/wp-admin/post.php?post=%d&action=edit">%s (%s)</a>%s</li>',
+        printf( '<li>%s%s: <a href="%s">%s (%s)</a>%s</li>',
           $x->post_status === 'publish' ? '<strong>' : '<em>',
           $labels[$x->post_type],
-          $x->ID,
+          current_user_can( 'edit_post', $x->ID ) ? get_edit_post_link( $x->ID ) : get_permalink( $x->ID ),
           HTMLentities($x->post_title),
           substr($x->post_modified,0,10),
           $x->post_status === 'publish' ? '</strong>' : '</em>'
@@ -1296,7 +1310,12 @@ class BaseThemeClass {
   function output_page( $page_type ) {
     get_header();
     global $post;
-    $extra = ['ID'=>get_the_ID(), 'url'=>get_permalink(),'title'=>the_title('','',false), 'page_content' => $post->post_content ];
+    $extra = [
+      'ID'=>get_the_ID(),
+      'url'=>get_permalink(),
+      'title'=>the_title('','',false),
+      'page_content' => $post->post_content
+    ];
     if( is_array( get_fields() ) ) {
       $this->output( $page_type, array_merge(get_fields(),$extra) );
     } else {
