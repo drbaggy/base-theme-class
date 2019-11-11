@@ -1197,9 +1197,10 @@ class BaseThemeClass {
       $function = $this->preprocessors[$template_code];
       $data = $function( $data, $this );
     }
-    $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-@~.\w+]+)(?::([^\]]+))?\]\]/',
+    $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-@~.!\w+]+)(?::([^\]]+))?\]\]/',
        implode('|',array_keys( $this->array_methods )),
        implode('|',array_keys( $this->scalar_methods )) );
+
     $out = implode( '', array_map(
       function( $t ) use ( $data, $template_code, $regexp ) {
         return is_object($t) && ($t instanceof Closure)
@@ -1263,6 +1264,10 @@ class BaseThemeClass {
         foreach( explode( '.', $variable ) as $key ) {
           // Missing data
           if( is_object( $t_data) ) {
+            if( substr( $key, 0, 1 ) === '!' ) {
+              $t_data = get_field( substr($key,1), $t_data->ID );
+              continue;
+            }
             if( $key == '@' ) {
               $key = 'comment_count';
             }
