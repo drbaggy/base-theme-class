@@ -975,6 +975,7 @@ class BaseThemeClass {
 
   function initialize_templates() {
     $this->templates      = [];
+    $this->switchers      = [];
     $this->preprocessors  = [];
     $this->postprocessors = [];
     $this->debug          = false;
@@ -1312,8 +1313,8 @@ class BaseThemeClass {
     global $post;
     $extra = [
       'ID'=>get_the_ID(),
-      'url'=>get_permalink(),
-      'title'=>the_title('','',false),
+      'page_url'=>get_permalink(),
+      'page_title'=>the_title('','',false),
       'page_content' => $post->post_content
     ];
     if( is_array( get_fields() ) ) {
