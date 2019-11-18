@@ -43,29 +43,37 @@
       * __templates__ - Apply named template to each element of the elements in turn
       * __template__ - Apply named template to an individual element of array or the array itself 
  
-    You can extend this array by using the method $this->add_scalar_method( $_key_, _function()_ );
+    You can extend this array by using the method $this->add_array_method( $_key_, _function()_ );
     
  * __$scalar_methods__ []
  
     Template support functions included with [[...]] which act on the element of the structure supplied as an scalar...
     
-      * __ucfirst__
-      * __uc__
-      * __lc__
-      * __cr__
-      * __hr__
-      * __raw__
-      * __date__
-      * __enc__
-      * __rand_enc__
-      * __integer__
-      * __boolean__
-      * __shortcode__
-      * __strip__
-      * __html__
-      * __rand_html__
-      * __email__
-      * __wp__
+      * __ucfirst__ - return the attribute of the given object with the first letter capitalised
+      * __uc__ - return the attribute of the given object with all letters capitalised
+      * __lc__ - return the attribute of the given object with all letters lower-cased
+      * __cr__ - return a computer readable version of a string, letters lowercased, other symbols converted to _
+      * __hr__ - return a human readable version of a string, letters "ucfirst"...
+      * __raw__ - return the string as is
+      * __date__ - format the string as date using __$date_format__ to define structure
+      * __enc__ - URL encode each element of string
+      * __rand_enc__ - URL encode random characters of string
+      * __integer__ - render integer value
+      * __boolean__ - render TRUE or FALSE
+      * __shortcode__ - Include text and evaluate all short codes in string
+      * __strip__ - Strip tag names from code
+      * __html__ - HTML encode each element of string
+      * __rand_html__ - HTML encode random characters of string
+      * __email__ - Make an email link - with randomly encode characters
+      * __wp__ - Include a wordpress attribute or funciton...
+      
+        * __charset__ - Wordpress's character set (usually UTF-8)
+        * __lang__ - Wordpress language value
+        * __path__ - Path to template directory
+        * __menu-{name}__ - named menu
+        * __body_class__ - content added to body class...
+        * __head__ - Content of wordpress_header
+        * __foot__ - Content of wordpress_header
 
     You can extend this array by using the method $this->add_scalar_method( $_key_, _function()_ );
  
