@@ -1000,6 +1000,7 @@ class BaseThemeClass {
       }
     ];
     $this->scalar_methods = [
+      'ucfirst'   => function( $s ) { return ucfirst($s); },
       'raw'       => function( $s ) { return $s; },
       'date'      => function( $s ) { return $s ? date_format( date_create( $s ), $this->date_format ) : '-'; },
       'enc'       => 'rawurlencode',
