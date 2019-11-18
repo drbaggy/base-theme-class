@@ -8,6 +8,7 @@ This is a neat class based theme template plugin to enable rapid development of 
   * [Creating a JSON request](json-request.md)
 * Documentation
   * [Notes about methods and data in base class theme](CODING.md)
+
 ## Features
 
 ### Wordpress management
