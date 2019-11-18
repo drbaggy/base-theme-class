@@ -38,7 +38,7 @@
     The default list of methods are:
     
       * __size__ - Size of the array
-      * __json__ - The array as a jason function
+      * __json__ - The array as a JSON structure
       * __dump__ - Development function - dump datastructure
       * __templates__ - Apply named template to each element of the elements in turn
       * __template__ - Apply named template to an individual element of array or the array itself 
