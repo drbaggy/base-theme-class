@@ -1001,6 +1001,10 @@ class BaseThemeClass {
     ];
     $this->scalar_methods = [
       'ucfirst'   => function( $s ) { return ucfirst($s); },
+      'hr'        => function( $s ) { return $this->hr($s); },
+      'cr'        => function( $s ) { return $this->cr($s); },
+      'uc'        => function( $s ) { return strtoupper($s); },
+      'lc'        => function( $s ) { return strtolower($s); },
       'raw'       => function( $s ) { return $s; },
       'date'      => function( $s ) { return $s ? date_format( date_create( $s ), $this->date_format ) : '-'; },
       'enc'       => 'rawurlencode',
@@ -1648,6 +1652,12 @@ class BaseThemeClass {
 //
 //======================================================================
 
+  function set_post( $key ) {
+    $GLOBALS['post']                          = get_page_by_path( $key, OBJECT );
+    $GLOBALS['wp_query']->queried_object      = $GLOBALS['post'];
+    $GLOBALS['wp_query']->queried_object_id   = $GLOBALS['post']->ID;
+    $GLOBALS['wp_query']->is_singular         = 1;
+  }
   function augment_relationship_labels( $title, $post ) {
     return $title.' ('.$post->ID.')';
   }
@@ -1671,4 +1681,100 @@ class BaseThemeClass {
       return preg_replace( '/^(\d{4})[-\/]?(\d\d)[-\/]?(\d\d).*$/', '$1-$2-$3', $s );
     }, $v ));
   }
+
+  function clean_and_shorten(
+    $str,
+    $max            = 15,
+    $decode         = 1,
+    $allowed_tags   = [ 'b', 'i', 'strong', 'em', 'sup', 'sub' ]
+  ) {
+  // parameters:
+  //   * $str    - string to "shorten" and "remove tags"...
+  //   * $max    - (default 15)   - maximum number of words to include before adding an ellipsis
+  //   * $decode - (default true) - whether to decode/reencode entities
+  //                                [ set to false if the text does not contain entities ]
+  //   * $allowed_tags            - See above for defaults, list of tags which are preserved...
+  //                                [ other tags are dropped ]
+    if( $max === 0 ) {      // Set to unlimited characters {just a clean up!}
+      $max = PHP_INT_MAX;
+    }
+    $count  = 0;
+    $tags   = [];
+    $parts  = preg_split( '/(<.*?>)/', $str, 0, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY );
+    $output = []; // Contents of HTML to be rendered...
+    $title  = ''; // Value of title tag if there is an ellipsis
+    $tag_n  = 1;
+    while( $part = array_shift( $parts ) ) {
+      // Check to see if starts with a "<" followed by optional "/" and
+      // a sequence of alpha characters - if it does it is a tag!
+
+      if( preg_match( '/<(\/?)(\w+).*?>/', $part, $matches ) ) {
+        list( , $close, $tagname ) = $matches; // $close "" or "/"
+        $tagname = strtolower( $tagname );     // $tagname - name of tag...
+        if( $count > $max ) {                  // This is in the ... text so skip...
+          $title .= ' ';                       // We add a space incase the tag would
+          continue;                            // force white space...
+        }
+        if( ! in_array( $tagname, $allowed_tags ) ) { // Is this one we allow?
+          continue;                                   // No - we skip this tag!
+        }
+        if( $close === '/' ) {                 // Is it a close tag
+          if( sizeof($tags) === 0 ) {
+            continue;                          // No tags - must be trying to close something wrong!
+          }
+          while( $open_tag = array_pop( $tags ) ) {
+            $output[] = "</$open_tag>";
+            if( $open_tag === $tagname ) {
+              break;
+            }
+          }
+        } else {                                 // It's an open tag
+          $tags[]   = $tagname;
+          $output[] = "<$tagname>";
+        }
+        continue;
+      }
+
+      // Now we fall through to the else part - we have text.. we need
+      // to chunk this into words (and gaps) and push them either to the
+      // visible text array OR the ellipsis text.
+      if( $decode ) { // We make entities characters so they don't get split up and counted as words...
+        $part = html_entity_decode( $part );
+      }
+      $words = preg_split( '/((?:[\p{L}_\d]+-+)*[\p{L}_\d]+)/u', $part, 0, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY );
+      $txt   = '';
+      foreach( $words as $word ) {
+        if( preg_match( '/[\p{L}_\d]/u', $word ) ) {     // We have a new word!
+          $count++;
+        }
+        if( $count <= $max ) {                   // Do we have space left!
+          $txt   .= $word;                         // add it..
+        } else {
+          $title .= preg_replace( '/&nbsp;/',' ', $word );
+        }
+      }
+      if( $decode ) {
+        $txt      = htmlentities( $txt );
+      }
+      if( $txt ) {
+        $output[] = preg_replace( '/&nbsp;/', ' ', $txt );
+      }
+      $txt   = preg_replace( '/&nbsp;/',' ', $txt );
+    }
+    while( $open_tag = array_pop( $tags ) ) {
+      $output[] = "</$open_tag>";
+    }
+    if( $decode ) {
+      $title = htmlentities( $title );
+      $title = preg_replace( '/&nbsp;/',' ', $title );
+    }
+    $title = trim(preg_replace( '/\s+/', ' ', $title ));
+    $new = implode( ' ', $output );
+    $new = trim(preg_replace( [ '/(<\w+>)\s+/', '/\s+(<\/\w+>)/', '/\s+/' ], [ '$1', '$1', ' ' ], $new ));
+    if( $title ) {
+      $new .= sprintf( ' <span title="... %s">...</span>', $title );
+    }
+    return $new;
+  }
+
 }
