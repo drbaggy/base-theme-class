@@ -52,9 +52,9 @@
  */
 
 const EXTRA_SETUP = [
-  'date_picker'      => [ 'return_value' => 'Y-m-d'       ], // Return values in "mysql datetime" format
-  'date_time_picker' => [ 'return_value' => 'Y-m-d H:i:s' ], //  - or relevant part of....
-  'time_picker'      => [ 'return_value' => 'H:i:s'       ], //
+  'date_picker'      => [ 'return_format' => 'Y-m-d'       ], // Return values in "mysql datetime" format
+  'date_time_picker' => [ 'return_format' => 'Y-m-d H:i:s' ], //  - or relevant part of....
+  'time_picker'      => [ 'return_format' => 'H:i:s'       ], //
   'image'            => [ 'save_format' => 'object', 'library' => 'all', 'preview_size' => 'large' ],
   'medium_editor'    => [
     'standard_buttons' => [ 'bold', 'italic', 'subscript', 'superscript', 'removeFormat' ],
