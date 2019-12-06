@@ -1489,11 +1489,7 @@ class BaseThemeClass {
     if( is_array( $credit ) ) {
       $credit = $credit[0];
     }
-    if( $credit ) {
-  	  return preg_replace( '/<img /','<img data-credit="'.HTMLentities($credit).'" ', $html );
-    } else {
-      return $thml;
-    }
+    return $credit ? preg_replace( '/<img /','<img data-credit="'.HTMLentities($credit).'" ', $html ) : $html;
   }
   function custom_media_save_attachment( $attachment_id ) {
     if ( isset( $_REQUEST['attachments'][ $attachment_id ]['custom_credit'] ) ) {
