@@ -455,6 +455,7 @@ class BaseThemeClass {
     $defn['fields'] = $this->munge_fields( $prefix, $fields, $type, '' );
     // Finally register the acf group to generate the admin interface!
     register_field_group( $defn );
+    //$t = fopen( '/tmp/variables.txt', 'a' ); ob_start(); var_export( $defn ); fwrite( $t, '$def["'.$type.'"] = '.ob_get_clean().";\n\n" ); fclose( $t );
     if( isset( $extra['fields'] ) ) {
       foreach( $extra['fields'] as $fg ) {
         $pos++;
@@ -1022,6 +1023,10 @@ class BaseThemeClass {
       },
       'wp'        => function( $s ) { // Used to call one of the standard wordpress template blocks
          switch( $s ) {
+           case 'part-' === substr( $s, 0, 5) :
+             ob_start();
+             get_template_part( substr( $s, 5 ) );
+             return ob_get_clean();
            case 'charset' :
              return get_bloginfo( 'charset' );
            case 'lang':
