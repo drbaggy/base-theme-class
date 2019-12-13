@@ -1669,15 +1669,18 @@ class BaseThemeClass {
 //======================================================================
 
   function set_post( $key ) {
-    $GLOBALS['post']                          = get_page_by_path( $key, OBJECT ); // Get the post.. and store it post object
-                                                                                  // This fixes the post object - but that
-                                                                                  // isn't enough - there are other bits
-                                                                                  // which are got from the wp_query object
-                                                                                  // which we need to set!
-    $GLOBALS['wp_query']->queried_object      = $GLOBALS['post'];                 // Replace queried_object with post
-    $GLOBALS['wp_query']->queried_object_id   = $GLOBALS['post']->ID;             // and it's ID
-    $GLOBALS['wp_query']->is_singular         = 1;                                // and finally make it a singular object...
-    return $this; // We can chain this now with $theme_obj->set_post( {key} )->output_page( {template_name} );
+    $tmp = get_page_by_path( $key, OBJECT );
+    if( $tmp ) {
+      $GLOBALS['post']                          = $tmp;      // Get the post.. and store it post object
+                                                             // This fixes the post object - but that isn't enough -
+                                                             // there are other bits which are got from the wp_query
+                                                             // which we need to set!
+      $GLOBALS['wp_query']->queried_object      = $tmp;      // Replace queried_object with post
+      $GLOBALS['wp_query']->queried_object_id   = $tmp->ID;  // and it's ID
+      $GLOBALS['wp_query']->is_singular         = 1;         // and finally make it a singular object...
+      return true;
+    }
+    return false; // We can chain this now with $theme_obj->set_post( {key} )->output_page( {template_name} );
   }
 
   function augment_relationship_labels( $title, $post ) {
