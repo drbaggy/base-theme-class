@@ -76,6 +76,7 @@ const DEFAULT_DEFN = [
   'SCRIPTS'       => [ 'pubs'  => [ '/wp-content/plugins/base-theme-class/pubs.js', false ]  ],      // Associate array of JS files  (key/filename)
   'ADMIN_SCRIPTS' => [ '/wp-content/plugins/base-theme-class/admin.js'                       ],      // Associate array of JS files  (key/filename)
   'ADMIN_STYLES'  => [],      // Associate array of JS files  (key/filename)
+  'FEATURES'      => [ 'captioned_widths' => true, ],
 ];
 
 class BaseThemeClass {
@@ -181,6 +182,17 @@ class BaseThemeClass {
     add_action( 'wp_enqueue_scripts',     array( $this, 'enqueue_scripts'        ), PHP_INT_MAX );
     add_action( 'admin_enqueue_scripts',  array( $this, 'enqueue_admin_scripts'  ), PHP_INT_MAX );
     return $this;
+  }
+
+  public function disabled( $feature_name ) {
+    if( ! array_key_exists( $feature_name, $this->defn['FEATURES'] ) ) {
+      return false;
+    }
+    $flag = $this->defn['FEATURES'][$feature_name];
+    if( is_array( $flag ) ) {
+      $flag = array_pop( $flag );
+    }
+    return !$flag;
   }
 
   public function enqueue_scripts() {
@@ -316,6 +328,9 @@ class BaseThemeClass {
   }
 
   public function stop_wordpress_screwing_up_image_widths_with_captions() {
+    if( $this->disabled( 'captioned_widths' ) ) {
+      return $this;
+    }
     add_filter(    'post_thumbnail_html',            array( $this, 'remove_width_attribute'  ), PHP_INT_MAX );
     add_filter(    'image_send_to_editor',           array( $this, 'remove_width_attribute'  ), PHP_INT_MAX );
     add_filter(    'get_image_tag',                  array( $this, 'remove_width_attribute'  ), PHP_INT_MAX );
@@ -659,7 +674,7 @@ class BaseThemeClass {
     add_action( 'rest_api_init', function () {
        register_rest_route( 'base', 'search/(?P<s>.+)', array(
          'methods' => 'GET',
-         'callback' => [ $this, 'my_admin_search' ] 
+         'callback' => [ $this, 'my_admin_search' ]
        ) );
     } );
     return $this;
@@ -690,7 +705,7 @@ class BaseThemeClass {
            $r->post_title,
            $labels[$r->post_type],
          ];
-       }, 
+       },
        $q->query( [
          'cache_results'          => false,
          'update_post_term_cache' => false,
@@ -1654,11 +1669,17 @@ class BaseThemeClass {
 //======================================================================
 
   function set_post( $key ) {
-    $GLOBALS['post']                          = get_page_by_path( $key, OBJECT );
-    $GLOBALS['wp_query']->queried_object      = $GLOBALS['post'];
-    $GLOBALS['wp_query']->queried_object_id   = $GLOBALS['post']->ID;
-    $GLOBALS['wp_query']->is_singular         = 1;
+    $GLOBALS['post']                          = get_page_by_path( $key, OBJECT ); // Get the post.. and store it post object
+                                                                                  // This fixes the post object - but that
+                                                                                  // isn't enough - there are other bits
+                                                                                  // which are got from the wp_query object
+                                                                                  // which we need to set!
+    $GLOBALS['wp_query']->queried_object      = $GLOBALS['post'];                 // Replace queried_object with post
+    $GLOBALS['wp_query']->queried_object_id   = $GLOBALS['post']->ID;             // and it's ID
+    $GLOBALS['wp_query']->is_singular         = 1;                                // and finally make it a singular object...
+    return $this; // We can chain this now with $theme_obj->set_post( {key} )->output_page( {template_name} );
   }
+
   function augment_relationship_labels( $title, $post ) {
     return $title.' ('.$post->ID.')';
   }
