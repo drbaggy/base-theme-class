@@ -95,6 +95,10 @@ class BaseThemeClass {
   protected $range_format;
   protected $custom_types;
 
+  public function type_name( $code ) {
+    return $this->custom_types[$code]['name'];
+  }
+
   public function __construct( $defn ) {
     $this->custom_types = [];
     $this->defn = $defn;
@@ -1449,7 +1453,7 @@ class BaseThemeClass {
 // The following functions are looking at defining a new role which would
 // allow assigning editors to individual pages
   function add_roles_on_plugin_activation() {
-    add_role( 'content_dditor', 'Content editor', [ 'read' => true, 'edit_posts' => true, 'edit_owned_posts' => true ] );
+    add_role( 'content_editor', 'Content editor', [ 'read' => true, 'edit_posts' => true, 'edit_owned_posts' => true ] );
   }
 
   function content_editor_filter( ) {
