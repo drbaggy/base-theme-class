@@ -63,6 +63,7 @@
 
 (function ($) {
   'use strict';
+$(function(){
   // Add handlers to links to arbitrarily set filters elsewhere on the page.
   //$('.change-filter').on('click', function () {
   $('.reset-filters').on('click',function(){
@@ -498,4 +499,5 @@
       }
       update_history( ky, flt );
     }
+});
 }(jQuery));
