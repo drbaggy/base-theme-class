@@ -94,6 +94,7 @@ class BaseThemeClass {
   protected $date_format;
   protected $range_format;
   protected $custom_types;
+  protected $index = 0;
 
   public function type_name( $code ) {
     return $this->custom_types[$code]['name'];
@@ -1046,6 +1047,8 @@ class BaseThemeClass {
              ob_start();
              get_template_part( substr( $s, 5 ) );
              return ob_get_clean();
+           case 'index' :
+             return ++$this->index;
            case 'charset' :
              return get_bloginfo( 'charset' );
            case 'lang':
