@@ -1334,10 +1334,11 @@ class BaseThemeClass {
 
   function render( $template_code, $data = [] ) {
     return $this->collapse_empty(
+      preg_replace('/~EMPTY~/',                                '', // Hold empty attribute open!!
       preg_replace('/<a\s[^>]*?href=""[^>]*>.*?<\/a>/s',       '', // Empty links
       preg_replace('/<iframe\s[^>]*?src=""[^>]*><\/iframe>/',  '', // Empty iframes
       preg_replace('/<img\s[^>]*?src=""[^>]*>/',               '', // Empty images
-        $this->expand_template( $template_code, $data ) ) ) ) );
+        $this->expand_template( $template_code, $data ) ) ) ) ) );
   }
 
   function output( $template_code, $data = [] ) {
