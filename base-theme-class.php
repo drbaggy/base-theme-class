@@ -1257,6 +1257,7 @@ class BaseThemeClass {
             if( array_key_exists( $render_type, $this->scalar_methods ) ) {
               return $this->scalar_methods[ $render_type ]( $t_data );
             }
+            if( !is_scalar( $t_data ) ) { error_log( $template_code.' '.gettype( $t_data ) ); error_log( print_r( $t_data, 1 ) ); }
             return HTMLentities( $t_data );
           },
           $t
@@ -1385,6 +1386,7 @@ class BaseThemeClass {
       $return[] = array_merge( $meta, [
         'ID'           => $post->ID,
         'post_title'   => $post->post_title,
+        'post_type'    => $post->post_type,
         'post_excerpt' => $post->post_excerpt,
         'post_content' => $post->post_content,
         'post_url'     => get_permalink( $post ),
@@ -1402,6 +1404,7 @@ class BaseThemeClass {
       return array_merge( $munged[$x->ID], [
         'ID'           => $x->ID,
         'post_title'   => $x->post_title,
+        'post_type'    => $x->post_type,
         'post_excerpt' => $x->post_excerpt,
         'post_content' => $x->post_content,
         'post_url'     => get_permalink( $x ),
