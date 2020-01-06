@@ -95,7 +95,7 @@ class BaseThemeClass {
   protected $range_format;
   protected $custom_types;
   protected $index = 0;
-
+  protected $scripts;
   public function type_name( $code ) {
     return $this->custom_types[$code]['name'];
   }
@@ -103,6 +103,7 @@ class BaseThemeClass {
   public function __construct( $defn ) {
     $this->custom_types = [];
     $this->defn = $defn;
+    $this->scripts = [];
     $this->date_format = 'F jS Y';
 //                          //year diff               // month diff            // day diff            // same day!
     $this->range_format = [ [ 'F jS Y',' - F jS Y' ], [ 'F jS', ' - F jS Y' ], [ 'F jS', ' - jS Y' ], [ 'F jS Y', '' ] ];
@@ -1718,6 +1719,47 @@ class BaseThemeClass {
     }, $v ));
   }
 
+  function add_style( $style_src, $css = '') {
+    $md5 = md5( 'css:#:#:'.$style_src.':#:#:'.$css );
+    if( isset( $this->scripts[$md5] ) ) {
+      return '';
+    }
+    $out = '';
+    if( $style_src != '' ) {
+      $out = sprintf( '<link rel="stylesheet" href="%s" />', HTMLentities( $style_src ) );
+    }
+    if( $css != '' ) {
+      $out .= sprintf( '<style>
+/*<![CDATA[*/
+%s
+/*]]>*/
+</style>', $css );
+    }
+    $this->scripts[$md5] = true;
+    return $out;
+  }
+
+  function add_script( $script, $js = '' ) {
+    $md5 = md5( 'js:#:#:'.$script.':#:#:'.$js );
+    if( isset( $this->scripts[$md5] ) ) {
+      return '';
+    }
+    if( $script != '' ) {
+      $out = sprintf( '<script src="%s">', HTMLentities( $script ) );
+    } else {
+      $out = '<script>';
+    }
+    if( $js != '' ) {
+      $out .= sprintf( '
+//<![CDATA[
+%s
+//]]>
+', $js );
+    }
+    $out .= '</script>';
+    $this->scripts[$md5] = true;
+    return $out;
+  }
   function clean_and_shorten(
     $str,
     $max            = 15,
