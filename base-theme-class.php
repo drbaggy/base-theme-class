@@ -707,9 +707,10 @@ class BaseThemeClass {
            $labels[$r->post_type] = get_post_type_labels(get_post_type_object($r->post_type))->singular_name;
          }
          return [
-           current_user_can( 'edit_post', $r->ID) ? get_edit_post_link( $r->ID ) : get_permalink( $r->ID ),
+           get_permalink( $r->ID ),
            $r->post_title,
            $labels[$r->post_type],
+           $r->ID,
          ];
        },
        $q->query( [
