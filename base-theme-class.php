@@ -1375,6 +1375,29 @@ class BaseThemeClass {
     return $this;
   }
 
+  function get_entry( $id ) {
+    $get_posts = new WP_Query;
+    $post = get_post( $id );
+
+    if( !$post ) {
+      return;
+    }
+    $meta = get_fields( $post->ID );
+    if( !is_array( $meta ) ) {
+      $meta = [];
+    }
+    $return = array_merge( $meta, [
+      'ID'           => $post->ID,
+      'post_title'   => $post->post_title,
+      'post_type'    => $post->post_type,
+      'post_excerpt' => $post->post_excerpt,
+      'post_content' => $post->post_content,
+      'post_url'     => get_permalink( $post ),
+      'post_name'    => $post->post_name
+    ] );
+    return $return;
+  }
+
   function get_entries( $type, $extra = array() ) {
     $get_posts = new WP_Query;
     $entries = $get_posts->query( array_merge( ['posts_per_page'=>-1,'post_type'=>$type], $extra ) );
