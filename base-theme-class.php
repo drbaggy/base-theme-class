@@ -1132,7 +1132,7 @@ class BaseThemeClass {
       if( is_dir( $full_path ) ) {
         if( $dh = opendir($full_path) ) {
           while( ($file = readdir($dh)) !== false ) {
-            if( '.' !== substr($file,0,1) ) {
+            if( '.' !== substr($file,0,1) && '~' !== substr($file,-1) ) {
               $this->load_from_directory( $dirname.'/'.$file );
             }
           }
