@@ -61,7 +61,7 @@
       if( $(this).closest('div').hasClass('js-sec') ) {
         $(this).closest('.js-more').removeClass('js-expand').children('span').html( txt );
       } else {
-        $(this).closest('div').find('.js-more').children('span').html('More');
+        $(this).closest('div').find('.js-more').removeClass('js-expand').children('span').html('More');
       }
     });
     $('body').on("click",".references h3",function(){
