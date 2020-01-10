@@ -1476,7 +1476,9 @@ class BaseThemeClass {
       // Trim empty tags -- a, span, p, div, h[1-6], ...
       list($munged,$html_str) = array(
         $html_str,
-        preg_replace( '/<(li|ol|ul|a|span|p|div|h\d)[^>]*>\s*<\/\1>/', '', $html_str )
+        preg_replace_callback( '/<(li|ol|ul|a|span|p|div|h\d)[^>]*>\s*<\/\1>/', function( $matches ) {
+          return strpos($matches[0],'keep') === false ? '' : $matches[0];
+        }, $html_str )
       );
     }
     return preg_replace( '/\s*[\r\n]+\s*[\r\n]/', "\n", $html_str ); // Remove blank lines
