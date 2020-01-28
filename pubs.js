@@ -41,7 +41,7 @@
       $(x).find('ul').eq(n).show().siblings("ul").hide();
       var cont = $(x).find('.col-tabs').eq(0);
       var primhtml = cont.html().replace(/checked="checked"/,'');
-      cont.append('<span class="js-more"><span>More</span><div class="js-sec">'+primhtml+'</div></span>').addClass('js-fied');
+      cont.append('<span class="js-more"><span>Archive</span><div class="js-sec">'+primhtml+'</div></span>').addClass('js-fied');
       $(x).find('.js-more').on('click', function() {
         $(this).toggleClass('js-expand');
       });
@@ -61,7 +61,7 @@
       if( $(this).closest('div').hasClass('js-sec') ) {
         $(this).closest('.js-more').removeClass('js-expand').children('span').html( txt );
       } else {
-        $(this).closest('div').find('.js-more').removeClass('js-expand').children('span').html('More');
+        $(this).closest('div').find('.js-more').removeClass('js-expand').children('span').html('Archive');
       }
     });
     $('body').on("click",".references h3",function(){
