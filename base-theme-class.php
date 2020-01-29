@@ -1100,11 +1100,15 @@ class BaseThemeClass {
           $this->add_preprocessor( $key, $template['pre'] );
         }
         $this->add_template( $key, $template['template'] );
-      #  $this->templates[$key][] = $template['template'];
         if( array_key_exists( 'post', $template ) ) {
           $this->add_postprocessor( $key, $template['post'] );
         }
         return $this;
+      } else { // Switch needs to be outwith template logic as well - as we may not have a real template
+        if( array_key_exists( 'switch', $template ) ) {      // Just some logic as to which template to use
+          $this->add_switcher( $key, $template['switch'] );  // or just to chose another template
+          $this->add_template( $key, "{{{{STUB TEMPLATE FOR EMPTY SWITCH}}}}" );
+        }
       }
       foreach( $template as $t ) {
         $this->templates[$key][] = $t;
@@ -1220,6 +1224,7 @@ class BaseThemeClass {
     if( array_key_exists( $template_code, $this->switchers ) ) {
       $function = $this->switchers[$template_code];
       $t = $function( $data, $this );
+      error_log( "$template_code - $t" );
       if( $t === false ) {
         return '';
       }
@@ -1424,19 +1429,22 @@ class BaseThemeClass {
   function get_entries_light( $type, $extra = array(), $keys = array() ) {
     $get_posts = new WP_Query;
     $entries = $get_posts->query( array_merge( ['cache_results'=>false,'update_post_term_cache'=>false,'update_post_meta_cache'=>false,'posts_per_page'=>-1,'post_type'=>$type], $extra ) );
-    $munged = $this->fetch_meta( $entries, $keys );
-    $t = array_map( function( $x ) use ($munged) {
-      return array_merge( $munged[$x->ID], [
-        'ID'           => $x->ID,
-        'post_title'   => $x->post_title,
-        'post_type'    => $x->post_type,
-        'post_excerpt' => $x->post_excerpt,
-        'post_content' => $x->post_content,
-        'post_url'     => get_permalink( $x ),
-        'post_name'    => $x->post_name ]
-      );
-    }, $entries );
-    return $t;
+    if( is_array($entries) && sizeof($entries) > 0 ) {
+      $munged = $this->fetch_meta( $entries, $keys );
+      $t = array_map( function( $x ) use ($munged) {
+        return array_merge( $munged[$x->ID], [
+          'ID'           => $x->ID,
+          'post_title'   => $x->post_title,
+          'post_type'    => $x->post_type,
+          'post_excerpt' => $x->post_excerpt,
+          'post_content' => $x->post_content,
+          'post_url'     => get_permalink( $x ),
+          'post_name'    => $x->post_name ]
+        );
+      }, $entries );
+      return $t;
+    }
+    return [];
   }
 
 //----------------------------------------------------------------------
@@ -1539,20 +1547,37 @@ class BaseThemeClass {
         'helps' => __( 'Enter credit details for image' ),
         'input'  => 'text'
     );
+    $field_value = get_post_meta( $post->ID, 'image_size', true );
+    $value = $field_value ? $field_value : 'full';
+    $html = '';
+    foreach( ['thumbnail','medium','large','full'] as $size ) {
+      $html .= '<option value="'.$size.'"'.($size == $value ?' selected="selected"' : '').'>';
+    }
+    $form_fields['image_size'] = array(
+      'label' => 'Image size',
+      'helps' => __( 'Select image size to use' ),
+      'input' => 'html',
+      'html'  => '<select id="attachments-'.$post->ID.'-image_size">'.$html.'</select>',
+      'value' => $value
+    );
     return $form_fields;
   }
+
   function include_credit_as_data_attribute( $html, $id, $alt, $title ) {
     $t = get_post_meta( $id );
     $credit = $t['custom_credit'];
     if( is_array( $credit ) ) {
       $credit = $credit[0];
     }
-    return $credit ? preg_replace( '/<img /','<img data-credit="'.HTMLentities($credit).'" ', $html ) : $html;
+    $size = $t['image_size'];
+    #wp_get_attachment_image_src
   }
   function custom_media_save_attachment( $attachment_id ) {
     if ( isset( $_REQUEST['attachments'][ $attachment_id ]['custom_credit'] ) ) {
       $custom_credit = $_REQUEST['attachments'][ $attachment_id ]['custom_credit'];
+      $custom_credit = $_REQUEST['attachments'][ $attachment_id ]['image_size'];
       update_post_meta( $attachment_id, 'custom_credit', $custom_credit );
+      update_post_meta( $attachment_id, 'image_size', $image_size );
     }
   }
   function add_credit_code() {
@@ -1732,17 +1757,25 @@ class BaseThemeClass {
   }
 
   function acf_custom_column( $column, $post_id ) {
-    $v = get_post_meta( $post_id, substr($column,4), true );
+    #$v = get_post_meta( $post_id, substr($column,4), true );
     $v = get_field( substr($column,4), $post_id, true );
+
+    if( is_null( $v ) ) {
+      print $column.'-X';
+    }
+    
     if( !is_array($v) ) {
       $v = [$v];
     }
-    echo implode( '; ', array_map( function($s) {
+
+    $s = implode( '; ', array_map( function($s) {
       if( is_object($s) ) {
         return $s->post_title;
       }
       return preg_replace( '/^(\d{4})[-\/]?(\d\d)[-\/]?(\d\d).*$/', '$1-$2-$3', $s );
     }, $v ));
+    if( $s == '' ) { $s = '-'; };
+    print $column.'-'.$s;
   }
 
   function add_style( $style_src, $css = '') {
@@ -1786,12 +1819,7 @@ class BaseThemeClass {
     $this->scripts[$md5] = true;
     return $out;
   }
-  function clean_and_shorten(
-    $str,
-    $max            = 15,
-    $decode         = 1,
-    $allowed_tags   = [ 'b', 'i', 'strong', 'em', 'sup', 'sub' ]
-  ) {
+  function clean_and_shorten( $str, $max  = 15, $decode = 1, $allowed_tags   = [ 'b', 'i', 'strong', 'em', 'sup', 'sub' ] ) {
   // parameters:
   //   * $str    - string to "shorten" and "remove tags"...
   //   * $max    - (default 15)   - maximum number of words to include before adding an ellipsis
@@ -1808,6 +1836,7 @@ class BaseThemeClass {
     $output = []; // Contents of HTML to be rendered...
     $title  = ''; // Value of title tag if there is an ellipsis
     $tag_n  = 1;
+    error_log( print_r([$parts, $count, $max],1) );
     while( $part = array_shift( $parts ) ) {
       // Check to see if starts with a "<" followed by optional "/" and
       // a sequence of alpha characters - if it does it is a tag!
@@ -1874,10 +1903,13 @@ class BaseThemeClass {
     }
     $title = trim(preg_replace( '/\s+/', ' ', $title ));
     $new = implode( ' ', $output );
+    error_log( 'xx'.$new );
     $new = trim(preg_replace( [ '/(<\w+>)\s+/', '/\s+(<\/\w+>)/', '/\s+/' ], [ '$1', '$1', ' ' ], $new ));
+    error_log( 'xx'.$new );
     if( $title ) {
       $new .= sprintf( ' <span title="... %s">...</span>', $title );
     }
+    error_log( 'xx'.$new );
     return $new;
   }
 

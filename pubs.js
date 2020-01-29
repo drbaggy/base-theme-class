@@ -39,6 +39,9 @@
       $(x).html(h);
       var n = $(x).find('.references input[checked="checked"]').closest("label").prevAll("label").length;
       $(x).find('ul').eq(n).show().siblings("ul").hide();
+      if( ! $(x).find('.col-tabs').length ) {
+        return;
+      }
       var cont = $(x).find('.col-tabs').eq(0);
       var primhtml = cont.html().replace(/checked="checked"/,'');
       cont.append('<span class="js-more"><span>More</span><div class="js-sec">'+primhtml+'</div></span>').addClass('js-fied');
