@@ -1760,10 +1760,6 @@ class BaseThemeClass {
     #$v = get_post_meta( $post_id, substr($column,4), true );
     $v = get_field( substr($column,4), $post_id, true );
 
-    if( is_null( $v ) ) {
-      print $column.'-X';
-    }
-    
     if( !is_array($v) ) {
       $v = [$v];
     }
