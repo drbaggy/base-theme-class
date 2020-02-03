@@ -115,8 +115,8 @@ class BaseThemeClass {
          // quirks of wordpress when using it to make a website
          // rather than a blog!
          ->clean_up_the_rubbish_wordpress_adds()
-         ->stop_wordpress_screwing_up_image_widths_with_captions()
-         ->tidy_up_image_sizes()
+         //**** ->stop_wordpress_screwing_up_image_widths_with_captions()
+         //->tidy_up_image_sizes()
          ->remove_comments_admin()
          // Now we just set up stuff that we need to have set up for
          // this site - some of these are part of the base theme -
@@ -1571,7 +1571,9 @@ class BaseThemeClass {
     }
     $size = $t['image_size'];
     #wp_get_attachment_image_src
+    return $credit ? preg_replace( '/<img /','<img data-credit="'.HTMLentities($credit).'" ', $html ) : $html;
   }
+
   function custom_media_save_attachment( $attachment_id ) {
     if ( isset( $_REQUEST['attachments'][ $attachment_id ]['custom_credit'] ) ) {
       $custom_credit = $_REQUEST['attachments'][ $attachment_id ]['custom_credit'];
