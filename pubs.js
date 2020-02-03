@@ -62,9 +62,9 @@
       var n = $(this).closest("label").prevAll("label").length, txt = $(this).parent().children('span').html();
       $(this).closest("div.references").find("ul").eq(n).show().siblings("ul").hide();
       if( $(this).closest('div').hasClass('js-sec') ) {
-        $(this).closest('.js-more').removeClass('js-expand').children('span').html( txt );
+        $(this).closest('.js-more').addClass('pub-active').removeClass('js-expand').children('span').html( txt );
       } else {
-        $(this).closest('div').find('.js-more').removeClass('js-expand').children('span').html('Archive');
+        $(this).closest('div').find('.js-more').removeClass('pub-active').removeClass('js-expand').children('span').html('Archive');
       }
     });
     $('body').on("click",".references h3",function(){
