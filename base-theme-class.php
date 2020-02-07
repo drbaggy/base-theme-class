@@ -1773,7 +1773,7 @@ class BaseThemeClass {
       return preg_replace( '/^(\d{4})[-\/]?(\d\d)[-\/]?(\d\d).*$/', '$1-$2-$3', $s );
     }, $v ));
     if( $s == '' ) { $s = '-'; };
-    print $column.'-'.$s;
+    print $s;
   }
 
   function add_style( $style_src, $css = '') {
