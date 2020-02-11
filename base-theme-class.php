@@ -1355,7 +1355,6 @@ class BaseThemeClass {
   }
 
   function output_page( $page_type ) {
-    get_header();
     global $post;
     $extra = [
       'ID'=>get_the_ID(),
@@ -1363,11 +1362,14 @@ class BaseThemeClass {
       'page_title'=>the_title('','',false),
       'page_content' => $post->post_content
     ];
-    if( is_array( get_fields() ) ) {
-      $this->output( $page_type, array_merge(get_fields(),$extra) );
-    } else {
-      $this->output( $page_type, $extra );
+    $fields = get_fields();
+    $out = $this->render( $page_type, is_array($fields) ? array_merge($fields,$extra) : $extra );
+    if( ! $out ) {
+      $this->set_post( 'not-found' ); // should have a not found post set up!
+      include_once( $this->template_directory.'/'.get_page_template_slug( $GLOBALS['post']->ID ) );
     }
+    get_header();
+    print $out; 
     get_footer();
   }
 
