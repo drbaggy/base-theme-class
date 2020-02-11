@@ -6,13 +6,13 @@
     var sec   = $(tabs).find('.js-sec > label');
     var more  = $(tabs).find('.js-more');
     prim.hide(); more.show();
-    var space = $(tabs).find('.col-tabs').width() - more.width();
+    var space = $(tabs).find('.col-tabs').outerWidth() - more.outerWidth();
     prim.show(); more.hide();
     var q = prim.length - 1;
     prim.each(function(i){
       var p = $(this);
-      if(p.width() <= space ) {
-        space -= p.width();
+      if(p.outerWidth() <= space ) {
+        space -= p.outerWidth();
       } else {
         if( i == q && space ) {
           space = 1;
@@ -20,7 +20,6 @@
           space = 0;
         }
       }
-      console.log( i, p, p.width(),more.width(), q, space );
       if( space == 0 ) {
         p.hide();
         sec.eq(i).show();
