@@ -61,6 +61,11 @@ const EXTRA_SETUP = [
     'other_options'    => [ 'disableReturn', 'disableDoubleReturn' ],
     'custom_buttons'   => [],
   ],
+  'medium_editor_paragraphs'    => [
+    'standard_buttons' => [ 'bold', 'italic', 'subscript', 'superscript', 'removeFormat', 'unorderedlist', 'anchor', ],
+    'other_options'    => [ 'disableExtraSpaces' ],
+    'custom_buttons'   => [],
+  ],
 ];
 
 const DEFAULT_DEFN = [
@@ -553,7 +558,9 @@ class BaseThemeClass {
         error_log( "                                                                                       " );
       }
       if( array_key_exists( 'type', $def ) && array_key_exists( $def['type'], EXTRA_SETUP ) ) {
-        $me = array_merge( $me, EXTRA_SETUP[ $def['type'] ] );
+        $me = array_merge( $me, EXTRA_SETUP[ $def[
+          ( array_key_exists( 'alt', $def ) && array_key_exists( $def['alt'], EXTRA_SETUP ) ) ? 'alt' : 'type'
+        ] ] );
       }
       if( is_array( $def ) ) {
         $me = array_merge( $me, $def );
