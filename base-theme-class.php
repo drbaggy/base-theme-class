@@ -1,7 +1,7 @@
 <?php
 /*
 +----------------------------------------------------------------------
-| Copyright (c) 2018 Genome Research Ltd.
+| Copyright (c) 2018,2019,2020 Genome Research Ltd.
 | This is part of the Wellcome Sanger Institute extensions to
 | wordpress.
 +----------------------------------------------------------------------

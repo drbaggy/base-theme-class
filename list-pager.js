@@ -1,6 +1,7 @@
+/* eslint-env jquery */
 /*
  +----------------------------------------------------------------------
- | Copyright (c) 2016,2017,2018 Genome Research Ltd.
+ | Copyright (c) 2016,2017,2018,2019,2020 Genome Research Ltd.
  | This file is part of the Pagesmith web framework
  +----------------------------------------------------------------------
  | The Pagesmith web framework is free software: you can redistribute
@@ -31,8 +32,6 @@
  * Author         : js5
  * Maintainer     : js5
  * Created        : 2016-10-20
- * Last commit by : js5
- * Last modified  : 2016-10-31
 
 <div class="list-container" data-key="?" data-batch-size="?">
   <!-- Filters at the top of the page! -->
