@@ -960,7 +960,7 @@ class BaseThemeClass {
       HTMLentities( get_theme_mod( 'publication_options' ) ),
       HTMLentities( implode( ' ', $atts ) )
     ).
-    $this->add_script( '/wp-content/plugins/base-theme-class/pubs.js' );
+    $this->add_script( '', 'show_pubs(".ajax_publications")' );
   }
 
   // Short code: [email_link {email} {link text}?]
