@@ -953,6 +953,9 @@ class BaseThemeClass {
   }
 
   function publications_shortcode( $atts, $content = null ) {
+    if( ! is_array( $atts) ) {
+      $atts = [$atts];
+    }
     return sprintf(
 '
 <div class="ajax_publications publications" data-ids="%s %s">Loading publications...</div>
@@ -972,6 +975,9 @@ class BaseThemeClass {
   //
 
   function email_link( $atts, $content = null ) {
+    if( ! is_array( $atts) ) {
+      $atts = [$atts];
+    }
     $email = array_shift( $atts );
     if( !$email ) { // If no email provided die!!
       return '';
