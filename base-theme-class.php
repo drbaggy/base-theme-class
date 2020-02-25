@@ -1565,11 +1565,12 @@ class BaseThemeClass {
         'helps' => __( 'Enter credit details for image' ),
         'input'  => 'text'
     );
+/*
     $field_value = get_post_meta( $post->ID, 'image_size', true );
     $value = $field_value ? $field_value : 'full';
     $html = '';
     foreach( ['thumbnail','medium','large','full'] as $size ) {
-      $html .= '<option value="'.$size.'"'.($size == $value ?' selected="selected"' : '').'>';
+      $html .= '<option value="'.$size.'"'.($size == $value ?' selected="selected"' : '').'>'.$size.'</option>';
     }
     $form_fields['image_size'] = array(
       'label' => 'Image size',
@@ -1578,6 +1579,7 @@ class BaseThemeClass {
       'html'  => '<select id="attachments-'.$post->ID.'-image_size">'.$html.'</select>',
       'value' => $value
     );
+*/
     return $form_fields;
   }
 
@@ -1587,7 +1589,7 @@ class BaseThemeClass {
     if( is_array( $credit ) ) {
       $credit = $credit[0];
     }
-    $size = $t['image_size'];
+//  $size = $t['image_size'];
     #wp_get_attachment_image_src
     return $credit ? preg_replace( '/<img /','<img data-credit="'.HTMLentities($credit).'" ', $html ) : $html;
   }
@@ -1595,15 +1597,16 @@ class BaseThemeClass {
   function custom_media_save_attachment( $attachment_id ) {
     if ( isset( $_REQUEST['attachments'][ $attachment_id ]['custom_credit'] ) ) {
       $custom_credit = $_REQUEST['attachments'][ $attachment_id ]['custom_credit'];
-      $custom_credit = $_REQUEST['attachments'][ $attachment_id ]['image_size'];
       update_post_meta( $attachment_id, 'custom_credit', $custom_credit );
-      update_post_meta( $attachment_id, 'image_size', $image_size );
+//      $image_size    = $_REQUEST['attachments'][ $attachment_id ]['image_size'];
+//      update_post_meta( $attachment_id, 'image_size', $image_size );
     }
   }
   function add_credit_code() {
     add_filter( 'attachment_fields_to_edit', [ $this, 'custom_media_add_credit'      ], null, 2 );
     add_action( 'edit_attachment',           [ $this, 'custom_media_save_attachment' ] );
     add_filter( 'get_image_tag',             [ $this, 'include_credit_as_data_attribute' ], 0, 4);
+    add_action( 'wp_ajax_save-attachment-compat',  [ $this, 'custom_media_save_attachment' ] );
     return $this;
   }
 
