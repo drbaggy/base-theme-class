@@ -1589,8 +1589,7 @@ class BaseThemeClass {
     if( is_array( $credit ) ) {
       $credit = $credit[0];
     }
-//  $size = $t['image_size'];
-    #wp_get_attachment_image_src
+//  $size = $t['image_size'];  wp_get_attachment_image_src
     return $credit ? preg_replace( '/<img /','<img data-credit="'.HTMLentities($credit).'" ', $html ) : $html;
   }
 
@@ -1603,10 +1602,11 @@ class BaseThemeClass {
     }
   }
   function add_credit_code() {
-    add_filter( 'attachment_fields_to_edit', [ $this, 'custom_media_add_credit'      ], null, 2 );
-    add_action( 'edit_attachment',           [ $this, 'custom_media_save_attachment' ] );
-    add_filter( 'get_image_tag',             [ $this, 'include_credit_as_data_attribute' ], 0, 4);
-    add_action( 'wp_ajax_save-attachment-compat',  [ $this, 'custom_media_save_attachment' ] );
+    add_filter( 'attachment_fields_to_edit',           [ $this, 'custom_media_add_credit'      ], null, 2 );
+    add_action( 'edit_attachment',                     [ $this, 'custom_media_save_attachment' ] );
+    add_filter( 'get_image_tag',                       [ $this, 'include_credit_as_data_attribute' ], 0, 4);
+    add_filter( 'wp_get_attachment_image_attributes',  [ $this, 'include_credit_as_data_attribute' ], 0, 4);
+    add_action( 'wp_ajax_save-attachment-compat',  [ $this, 'custom_media_save_attachment' ], PHP_INT_MAX );
     return $this;
   }
 
