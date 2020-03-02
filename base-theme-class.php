@@ -1240,7 +1240,7 @@ class BaseThemeClass {
     if( array_key_exists( $template_code, $this->switchers ) ) {
       $function = $this->switchers[$template_code];
       $t = $function( $data, $this );
-      error_log( "$template_code - $t" );
+      //error_log( "$template_code - $t" );
       if( $t === false ) {
         return '';
       }
@@ -1855,7 +1855,7 @@ class BaseThemeClass {
     $output = []; // Contents of HTML to be rendered...
     $title  = ''; // Value of title tag if there is an ellipsis
     $tag_n  = 1;
-    error_log( print_r([$parts, $count, $max],1) );
+    //error_log( print_r([$parts, $count, $max],1) );
     while( $part = array_shift( $parts ) ) {
       // Check to see if starts with a "<" followed by optional "/" and
       // a sequence of alpha characters - if it does it is a tag!
@@ -1922,13 +1922,10 @@ class BaseThemeClass {
     }
     $title = trim(preg_replace( '/\s+/', ' ', $title ));
     $new = implode( ' ', $output );
-    error_log( 'xx'.$new );
     $new = trim(preg_replace( [ '/(<\w+>)\s+/', '/\s+(<\/\w+>)/', '/\s+/' ], [ '$1', '$1', ' ' ], $new ));
-    error_log( 'xx'.$new );
     if( $title ) {
       $new .= sprintf( ' <span title="... %s">...</span>', $title );
     }
-    error_log( 'xx'.$new );
     return $new;
   }
 
