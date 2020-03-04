@@ -64,7 +64,7 @@
   function show_pubs(x) {
     URL = '/component/references?pars='+encodeURIComponent($(x).data('ids'));
     $.get( URL, function( h ) {
-      $(x).html( h.replace(/([A-Z]+: )(<a href=".*?")>/g,'$2 target="_blank" title="* this link opens in a new window">$1').replace(/a>; <a/g,'>a <a').replace(/\s+<\/a>/g,'</a>') );
+      $(x).html( h.replace(/([A-Z]+: )(<a href=".*?")>/g,'$2 target="_blank" title="* this link opens in a new window">$1').replace(/a>; <a/g,'a> <a').replace(/\s+<\/a>/g,'</a>') );
       var n = $(x).find('.references input[checked="checked"]').closest("label").prevAll("label").length;
       $(x).find('ul').eq(n).show().siblings("ul").hide();
       if( ! $(x).find('.col-tabs').length ) {
