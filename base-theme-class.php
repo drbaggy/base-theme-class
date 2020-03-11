@@ -137,9 +137,23 @@ class BaseThemeClass {
          ->add_augmented_relationship_labels()         // By default include post ID in relationship labels (extendable)!
          ->extend_at_a_glance()                        // Add custom post types (and total) to at a glance panel on dashboard
          ->reconfigure_dashboard_and_show_my_posts()   // Re-arrange dashboard layout and a "my posts" panel
+         ->add_template_column()
          ;
   }
 
+  function add_template_column() {
+    add_action( 'manage_page_posts_custom_column', [ $this, 'template_column' ], 10, 2 );
+    add_filter( 'manage_page_posts_columns',       function( $columns ) { return array_merge( $columns, [ '_wp_page_template' => 'Template'] ); } );
+  }
+  function template_column( $column, $post_id ) {
+    if( $column == '_wp_page_template' ) {
+      $q = get_post_meta( $post_id, '_wp_page_template' );
+      if( isset($q) and is_array($q) ) {
+        print preg_replace('/-/',' ', $this->hr( preg_replace( '/\.php$/', '', $q[0] ) ) );
+      }
+    }
+    return;
+  }
   function set_date_format( $s ) {
     $this->date_format = $s;
     return $this;
@@ -1027,13 +1041,15 @@ class BaseThemeClass {
       'templates' => function( $t_data, $extra ) {
         if( is_array( $t_data ) ) {
           return implode( '', array_map(function($row) use ($extra) {
-            return $this->expand_template( $this->template_name( $extra, $row ), $row );
+            $tn =  $this->template_name( $extra, $row );
+            return $this->expand_template( $tn, $row );
           }, $t_data ));
         }
         return '';
       },
       'template'  => function( $t_data, $extra ) {
-        return $this->expand_template( $this->template_name( $extra, $t_data ), $t_data );
+        $tn =  $this->template_name( $extra, $t_data );
+        return $this->expand_template( $tn, $t_data );
       }
     ];
     $this->scalar_methods = [
@@ -1231,7 +1247,7 @@ class BaseThemeClass {
     return $flag ? $this : '';
   }
 
-  protected function expand_template( $template_code, $data) {
+  protected function expand_template( $template_code, $data ) {
     if( ! array_key_exists( $template_code, $this->templates ) ) {
       return $this->show_error( "Template '$template_code' is missing" );
     }
@@ -1240,7 +1256,6 @@ class BaseThemeClass {
     if( array_key_exists( $template_code, $this->switchers ) ) {
       $function = $this->switchers[$template_code];
       $t = $function( $data, $this );
-      //error_log( "$template_code - $t" );
       if( $t === false ) {
         return '';
       }
@@ -1262,7 +1277,7 @@ class BaseThemeClass {
       ? $t( $data, $template_code ) // If the template being parsed is a closure then we call the function
       : preg_replace_callback(      // It's a string so parse it - regexps are wonderful things!!!
           $regexp,
-          function($match) use ($data, $template_code) {
+          function($match) use ($data, $template_code ) {
             // For each substitute - get the parsed values....
 
             list( $render_type, $variable, $extra ) = [ $match[1], $match[2], array_key_exists( 3, $match ) ? $match[3] : '' ];
@@ -1362,7 +1377,7 @@ class BaseThemeClass {
       preg_replace('/<a\s[^>]*?href=""[^>]*>.*?<\/a>/s',       '', // Empty links
       preg_replace('/<iframe\s[^>]*?src=""[^>]*><\/iframe>/',  '', // Empty iframes
       preg_replace('/<img\s[^>]*?src=""[^>]*>/',               '', // Empty images
-        $this->expand_template( $template_code, $data ) ) ) ) ) );
+        $this->expand_template( $template_code, $data, "RENDER" ) ) ) ) ) );
   }
 
   function output( $template_code, $data = [] ) {
@@ -1605,7 +1620,7 @@ class BaseThemeClass {
     add_filter( 'attachment_fields_to_edit',           [ $this, 'custom_media_add_credit'      ], null, 2 );
     add_action( 'edit_attachment',                     [ $this, 'custom_media_save_attachment' ] );
     add_filter( 'get_image_tag',                       [ $this, 'include_credit_as_data_attribute' ], 0, 4);
-    add_filter( 'wp_get_attachment_image_attributes',  [ $this, 'include_credit_as_data_attribute' ], 0, 4);
+//   add_filter( 'wp_get_attachment_image_attributes',  [ $this, 'include_credit_as_data_attribute' ], 0, 4);
     add_action( 'wp_ajax_save-attachment-compat',  [ $this, 'custom_media_save_attachment' ], PHP_INT_MAX );
     return $this;
   }
@@ -1846,43 +1861,47 @@ class BaseThemeClass {
   //                                [ set to false if the text does not contain entities ]
   //   * $allowed_tags            - See above for defaults, list of tags which are preserved...
   //                                [ other tags are dropped ]
-    if( $max === 0 ) {      // Set to unlimited characters {just a clean up!}
+    if( !$max || $max < 0 ) {      // Set to unlimited characters {just a clean up!}
       $max = PHP_INT_MAX;
     }
     $count  = 0;
     $tags   = [];
-    $parts  = preg_split( '/(<.*?>)/', $str, 0, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY );
+    $parts  = preg_split( '/(\s*<.*?>\s*)/', $str, 0, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY );
     $output = []; // Contents of HTML to be rendered...
     $title  = ''; // Value of title tag if there is an ellipsis
     $tag_n  = 1;
     //error_log( print_r([$parts, $count, $max],1) );
     while( $part = array_shift( $parts ) ) {
-      // Check to see if starts with a "<" followed by optional "/" and
-      // a sequence of alpha characters - if it does it is a tag!
+      /* Check to see if starts with a "less than" followed by optional "/" and
+       a sequence of alpha characters - if it does it is a tag! */
 
-      if( preg_match( '/<(\/?)(\w+).*?>/', $part, $matches ) ) {
-        list( , $close, $tagname ) = $matches; // $close "" or "/"
+      if( preg_match( '/(\s*)<(\/?)(\w+).*?>(\s*)/', $part, $matches ) ) {
+        list( , $pre_space, $close, $tagname, $post_space ) = $matches; // $close "" or "/"
         $tagname = strtolower( $tagname );     // $tagname - name of tag...
         if( $count > $max ) {                  // This is in the ... text so skip...
           $title .= ' ';                       // We add a space incase the tag would
           continue;                            // force white space...
         }
         if( ! in_array( $tagname, $allowed_tags ) ) { // Is this one we allow?
+          $output[] = "$pre_space$post_space";
           continue;                                   // No - we skip this tag!
         }
         if( $close === '/' ) {                 // Is it a close tag
           if( sizeof($tags) === 0 ) {
             continue;                          // No tags - must be trying to close something wrong!
           }
+          $output[] = $pre_space;
           while( $open_tag = array_pop( $tags ) ) {
             $output[] = "</$open_tag>";
             if( $open_tag === $tagname ) {
+              $output[] = $post_space;
               break;
             }
           }
+          $output[] = $post_space;
         } else {                                 // It's an open tag
           $tags[]   = $tagname;
-          $output[] = "<$tagname>";
+          $output[] = "$pre_space<$tagname>$post_space";
         }
         continue;
       }
@@ -1921,7 +1940,7 @@ class BaseThemeClass {
       $title = preg_replace( '/&nbsp;/',' ', $title );
     }
     $title = trim(preg_replace( '/\s+/', ' ', $title ));
-    $new = implode( ' ', $output );
+    $new = implode( '', $output );
     $new = trim(preg_replace( [ '/(<\w+>)\s+/', '/\s+(<\/\w+>)/', '/\s+/' ], [ '$1', '$1', ' ' ], $new ));
     if( $title ) {
       $new .= sprintf( ' <span title="... %s">...</span>', $title );
