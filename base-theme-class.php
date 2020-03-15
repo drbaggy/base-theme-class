@@ -970,10 +970,18 @@ class BaseThemeClass {
     if( ! is_array( $atts) ) {
       $atts = [$atts];
     }
+    $class='pub-simple';
+    if( isset( $atts['class'] ) ) {
+      $class=$atts['class'];
+      unset($atts['class']);
+    } else {
+      $class = 'publications_list';
+    }
     return sprintf(
 '
-<div class="ajax_publications publications" data-ids="%s %s">Loading publications...</div>
+<div class="ajax_publications %s" data-ids="%s %s">Loading publications...</div>
 ',
+      $class,
       HTMLentities( get_theme_mod( 'publication_options' ) ),
       HTMLentities( implode( ' ', $atts ) )
     ).
