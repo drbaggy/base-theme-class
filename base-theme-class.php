@@ -979,7 +979,7 @@ class BaseThemeClass {
     }
     return sprintf(
 '
-<div class="ajax_publications %s" data-ids="%s %s">Loading publications...</div>
+<div class="ajax_publications %s" data-ids="%s %s"><span class="loading_publications-loading">Loading publications...</span></div>
 ',
       $class,
       HTMLentities( get_theme_mod( 'publication_options' ) ),
