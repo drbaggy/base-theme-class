@@ -979,7 +979,7 @@ class BaseThemeClass {
     }
     return sprintf(
 '
-<div class="ajax_publications %s" data-ids="%s %s"><span class="loading_publications-loading">Loading publications...</span></div>
+<div class="ajax_publications %s" data-ids="%s %s"><span class="loading_publications">Loading publications...</span></div>
 ',
       $class,
       HTMLentities( get_theme_mod( 'publication_options' ) ),
@@ -1882,7 +1882,6 @@ class BaseThemeClass {
     while( $part = array_shift( $parts ) ) {
       /* Check to see if starts with a "less than" followed by optional "/" and
        a sequence of alpha characters - if it does it is a tag! */
-
       if( preg_match( '/(\s*)<(\/?)(\w+).*?>(\s*)/', $part, $matches ) ) {
         list( , $pre_space, $close, $tagname, $post_space ) = $matches; // $close "" or "/"
         $tagname = strtolower( $tagname );     // $tagname - name of tag...
@@ -1949,7 +1948,7 @@ class BaseThemeClass {
     }
     $title = trim(preg_replace( '/\s+/', ' ', $title ));
     $new = implode( '', $output );
-    $new = trim(preg_replace( [ '/(<\w+>)\s+/', '/\s+(<\/\w+>)/', '/\s+/' ], [ '$1', '$1', ' ' ], $new ));
+    $new = trim(preg_replace( [ '/(<\w+>)\s+/', '/\s+(<\/\w+>)/', '/\s+/' ], [ '$1', '$1 ', ' ' ], $new ));
     if( $title ) {
       $new .= sprintf( ' <span title="... %s">...</span>', $title );
     }
