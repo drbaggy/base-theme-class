@@ -1950,7 +1950,7 @@ class BaseThemeClass {
     $new = implode( '', $output );
     $new = trim(preg_replace( [ '/(<\w+>)\s+/', '/\s+(<\/\w+>)/', '/\s+/' ], [ '$1', '$1 ', ' ' ], $new ));
     if( $title ) {
-      $new .= sprintf( ' <span title="... %s">...</span>', $title );
+      $new .= sprintf( '&nbsp;<span title="... %s">...</span>', $title );
     }
     return $new;
   }
