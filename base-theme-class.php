@@ -143,12 +143,34 @@ class BaseThemeClass {
          ->extend_at_a_glance()                        // Add custom post types (and total) to at a glance panel on dashboard
          ->reconfigure_dashboard_and_show_my_posts()   // Re-arrange dashboard layout and a "my posts" panel
          ->add_template_column()
+         ->fix_medium_editor()
          ;
+  }
+
+  function fix_medium_editor() {
+    add_filter( 'acf/update_value/type=medium_editor', [$this,'fix_medium_editor_update_value'], PHP_INT_MAX, 3 );
+  }
+
+  function fix_medium_editor_update_value( $value, $post_id, $field ) {
+    if( is_string($value) ) {
+      if( ! in_array('bold', $field['standard_buttons'] ) ) {
+        $value = preg_replace( '/<\/?b>/', '', $value );
+      }
+      if( ! in_array('italic', $field['standard_buttons'] ) ) {
+        $value = preg_replace( '/<\/?i>/', '', $value );
+      }
+      if( ! in_array('underline', $field['standard_buttons'] ) ) {
+        $value = preg_replace( '/<\/?u>/', '', $value );
+      }
+      $value = trim(preg_replace('/\s+/s', ' ', $value));
+    }
+    return $value;
   }
 
   function add_template_column() {
     add_action( 'manage_page_posts_custom_column', [ $this, 'template_column' ], 10, 2 );
     add_filter( 'manage_page_posts_columns',       function( $columns ) { return array_merge( $columns, [ '_wp_page_template' => 'Template'] ); } );
+    return $this;
   }
   function template_column( $column, $post_id ) {
     if( $column == '_wp_page_template' ) {
