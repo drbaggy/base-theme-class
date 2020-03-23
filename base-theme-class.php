@@ -66,6 +66,11 @@ const EXTRA_SETUP = [
     'other_options'    => [ 'disableExtraSpaces' ],
     'custom_buttons'   => [],
   ],
+  'medium_editor_title'    => [
+    'standard_buttons' => [ 'italic', 'subscript', 'superscript', 'removeFormat' ],
+    'other_options'    => [ 'disableReturn', 'disableDoubleReturn', 'disableExtraSpaces' ],
+    'custom_buttons'   => [],
+  ],
 ];
 
 const DEFAULT_DEFN = [
