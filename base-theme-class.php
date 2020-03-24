@@ -1094,7 +1094,7 @@ class BaseThemeClass {
       'uc'        => function( $s ) { return strtoupper($s); },
       'lc'        => function( $s ) { return strtolower($s); },
       'raw'       => function( $s ) { return $s; },
-      'date'      => function( $s ) { return $s ? date_format( date_create( $s ), $this->date_format ) : '-'; },
+      'date'      => function( $s ) { return $s ? date_format( date_create( $s ), $this->date_format ) : ''; },
       'enc'       => 'rawurlencode',
       'rand_enc'  => function( $s ) { return $this->random_url_encode( $s ); },
       'integer'   => 'intval',
