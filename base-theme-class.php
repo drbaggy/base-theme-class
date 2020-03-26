@@ -58,7 +58,7 @@ const EXTRA_SETUP = [
   'image'            => [ 'save_format' => 'object', 'library' => 'all', 'preview_size' => 'large' ],
   'medium_editor'    => [
     'standard_buttons' => [ 'bold', 'italic', 'subscript', 'superscript', 'removeFormat' ],
-    'other_options'    => [ 'disableReturn', 'disableDoubleReturn' ],
+    'other_options'    => [ 'disableReturn', 'disableDoubleReturn', 'disableExtraSpaces' ],
     'custom_buttons'   => [],
   ],
   'medium_editor_paragraphs'    => [
