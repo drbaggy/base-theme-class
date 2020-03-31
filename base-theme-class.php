@@ -144,11 +144,20 @@ class BaseThemeClass {
          ->reconfigure_dashboard_and_show_my_posts()   // Re-arrange dashboard layout and a "my posts" panel
          ->add_template_column()
          ->fix_medium_editor()
+         ->fix_reset_email()
          ;
   }
 
+  function fix_reset_email() {
+    add_filter( 'retrieve_password_message', [ $this, 'fix_password_message'], PHP_INT_MAX, 1 );
+    return $this;
+  }
+  function fix_password_message( $mess ) {
+    return preg_replace( '/(following address:\s+)<(.*?)>/','$1[$2]', $mess );
+  }
   function fix_medium_editor() {
     add_filter( 'acf/update_value/type=medium_editor', [$this,'fix_medium_editor_update_value'], PHP_INT_MAX, 3 );
+    return $this;
   }
 
   function fix_medium_editor_update_value( $value, $post_id, $field ) {
