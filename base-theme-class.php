@@ -143,21 +143,30 @@ class BaseThemeClass {
          ->extend_at_a_glance()                        // Add custom post types (and total) to at a glance panel on dashboard
          ->reconfigure_dashboard_and_show_my_posts()   // Re-arrange dashboard layout and a "my posts" panel
          ->add_template_column()
-         ->fix_medium_editor()
+         ->fix_acf_fields()
          ->fix_reset_email()
          ;
   }
 
   function fix_reset_email() {
+    // Wordpress is stupid! The password reset URL is included between "<>"s most
+    // email clients hide this in the output as they treat it as an HTML tag..
     add_filter( 'retrieve_password_message', [ $this, 'fix_password_message'], PHP_INT_MAX, 1 );
     return $this;
   }
   function fix_password_message( $mess ) {
     return preg_replace( '/(following address:\s+)<(.*?)>/','$1[$2]', $mess );
   }
-  function fix_medium_editor() {
+  function fix_acf_fields() {
+    // Remove disabled tags from markup...
     add_filter( 'acf/update_value/type=medium_editor', [$this,'fix_medium_editor_update_value'], PHP_INT_MAX, 3 );
+    // Add <p> tags if none are included to stop screwed up output!
+    add_filter( 'acf/format_value/type=wysiwyg',       [$this,'fix_wysiwyg_format_value'],       PHP_INT_MAX, 3 );
     return $this;
+  }
+
+  function fix_wysiwyg_format_value( $value, $post_id, $field ) {
+    return preg_match('/^\s*</',$value) ? $value : '<p>'.$value.'</p>';   
   }
 
   function fix_medium_editor_update_value( $value, $post_id, $field ) {
