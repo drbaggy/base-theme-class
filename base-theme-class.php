@@ -1110,9 +1110,9 @@ class BaseThemeClass {
       'integer'   => 'intval',
       'boolean'   => function( $s ) { return $s ? 'true' : 'false'; },
       'shortcode' => 'do_shortcode',
-      'shortcode' => function( $s ) { return do_shortcode( preg_match('/^\s*</',$s) ? $s, "<p>$s</p>" );
+      'shortcode' => function( $s ) { return do_shortcode( preg_match('/^\s*</',$s) ? $s, "<p>$s</p>" ); },
       'strip'     => function( $s ) { return preg_replace( '/\s*\b(height|width)=["\']\d+["\']/', '', do_shortcode( $s ) ); },
-      'pstrip'    => function( $s ) { return preg_replace( '/\s*\b(height|width)=["\']\d+["\']/', '', do_shortcode( preg_match('/^\s*</',$s) ? $s : "<p>$s</p>"; ) ); },
+      'pstrip'    => function( $s ) { return preg_replace( '/\s*\b(height|width)=["\']\d+["\']/', '', do_shortcode( preg_match('/^\s*</',$s) ? $s : "<p>$s</p>" ) ); },
       'rand_html' => function( $s ) { return $this->random_html_entities( $s ); },
       'html'      => 'HTMLentities',
       'post_url_link' => function( $s ) { return HTMLentities(get_permalink( $s )); },
