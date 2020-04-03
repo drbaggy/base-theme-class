@@ -1135,6 +1135,8 @@ class BaseThemeClass {
              ob_start();
              get_template_part( substr( $s, 5 ) );
              return ob_get_clean();
+           case 'prev_index' :
+             return $this->index;
            case 'index' :
              return ++$this->index;
            case 'charset' :
