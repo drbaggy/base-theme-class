@@ -1,7 +1,7 @@
 <?php
-/* XX1
+/*
 +----------------------------------------------------------------------
-| Copyright (c) 2018 Genome Research Ltd.
+| Copyright (c) 2018,2019,2020 Genome Research Ltd.
 | This is part of the Wellcome Sanger Institute extensions to
 | wordpress.
 +----------------------------------------------------------------------
@@ -52,12 +52,22 @@
  */
 
 const EXTRA_SETUP = [
-  'date_picker'      => [ 'return_value' => 'Y-m-d'       ], // Return values in "mysql datetime" format
-  'date_time_picker' => [ 'return_value' => 'Y-m-d H:i:s' ], //  - or relevant part of....
-  'time_picker'      => [ 'return_value' => 'H:i:s'       ], // 
+  'date_picker'      => [ 'return_format' => 'Y-m-d'       ], // Return values in "mysql datetime" format
+  'date_time_picker' => [ 'return_format' => 'Y-m-d H:i:s' ], //  - or relevant part of....
+  'time_picker'      => [ 'return_format' => 'H:i:s'       ], //
   'image'            => [ 'save_format' => 'object', 'library' => 'all', 'preview_size' => 'large' ],
   'medium_editor'    => [
     'standard_buttons' => [ 'bold', 'italic', 'subscript', 'superscript', 'removeFormat' ],
+    'other_options'    => [ 'disableReturn', 'disableDoubleReturn', 'disableExtraSpaces' ],
+    'custom_buttons'   => [],
+  ],
+  'medium_editor_paragraphs'    => [
+    'standard_buttons' => [ 'bold', 'italic', 'subscript', 'superscript', 'removeFormat', 'unorderedlist', 'anchor', ],
+    'other_options'    => [ 'disableExtraSpaces' ],
+    'custom_buttons'   => [],
+  ],
+  'medium_editor_title'    => [
+    'standard_buttons' => [ 'italic', 'subscript', 'superscript', 'removeFormat' ],
     'other_options'    => [ 'disableReturn', 'disableDoubleReturn', 'disableExtraSpaces' ],
     'custom_buttons'   => [],
   ],
@@ -71,11 +81,12 @@ const DEFAULT_DEFN = [
     // default - default value
     // description - help text appears under
   ],
-  'DEFAULT_TYPE'  => 'page', // We need to know what type to default to as removing posts!
-  'STYLES'        => [],     // Associate array of CSS files (key/filename)
+  'DEFAULT_TYPE'  => 'page',  // We need to know what type to default to as removing posts!
+  'STYLES'        => [],      // Associate array of CSS files (key/filename)
   'SCRIPTS'       => [ 'pubs'  => [ '/wp-content/plugins/base-theme-class/pubs.js', false ]  ],      // Associate array of JS files  (key/filename)
-  'ADMIN_SCRIPTS' => [ 'tweak' => '/wp-content/plugins/base-theme-class/admin.js' ],      // Associate array of JS files  (key/filename)
-  'ADMIN_STYLES'  => []      // Associate array of JS files  (key/filename)
+  'ADMIN_SCRIPTS' => [ '/wp-content/plugins/base-theme-class/admin.js'                       ],      // Associate array of JS files  (key/filename)
+  'ADMIN_STYLES'  => [],      // Associate array of JS files  (key/filename)
+  'FEATURES'      => [ 'captioned_widths' => true, ],
 ];
 
 class BaseThemeClass {
@@ -86,14 +97,23 @@ class BaseThemeClass {
   protected $templates;
   protected $preprocessors;
   protected $postprocessors;
+  protected $switchers;
   protected $debug;
   protected $array_methods;
   protected $scalar_methods;
   protected $date_format;
   protected $range_format;
+  protected $custom_types;
+  protected $index = 0;
+  protected $scripts;
+  public function type_name( $code ) {
+    return $this->custom_types[$code]['name'];
+  }
 
   public function __construct( $defn ) {
+    $this->custom_types = [];
     $this->defn = $defn;
+    $this->scripts = [];
     $this->date_format = 'F jS Y';
 //                          //year diff               // month diff            // day diff            // same day!
     $this->range_format = [ [ 'F jS Y',' - F jS Y' ], [ 'F jS', ' - F jS Y' ], [ 'F jS', ' - jS Y' ], [ 'F jS Y', '' ] ];
@@ -105,8 +125,8 @@ class BaseThemeClass {
          // quirks of wordpress when using it to make a website
          // rather than a blog!
          ->clean_up_the_rubbish_wordpress_adds()
-         ->stop_wordpress_screwing_up_image_widths_with_captions()
-         ->tidy_up_image_sizes()
+         //**** ->stop_wordpress_screwing_up_image_widths_with_captions()
+         //->tidy_up_image_sizes()
          ->remove_comments_admin()
          // Now we just set up stuff that we need to have set up for
          // this site - some of these are part of the base theme -
@@ -116,11 +136,69 @@ class BaseThemeClass {
          ->register_short_codes()
          // The following is experimental - creating a new sub-editor role [[ please ignore at the moment ]]
          //->register_new_role()
-         //->allow_authors_to_add_authors()
+         ->enable_co_authors_plus_on_all_post_types()  // Enable co-authors plus on all post types
+         ->restrict_who_can_manage_authors()           // Switch to allow admins OR owners OR authors to manage authors to post
          ->add_credit_code()
+         ->add_augmented_relationship_labels()         // By default include post ID in relationship labels (extendable)!
+         ->extend_at_a_glance()                        // Add custom post types (and total) to at a glance panel on dashboard
+         ->reconfigure_dashboard_and_show_my_posts()   // Re-arrange dashboard layout and a "my posts" panel
+         ->add_template_column()
+         ->fix_acf_fields()
+         ->fix_reset_email()
          ;
   }
 
+  function fix_reset_email() {
+    // Wordpress is stupid! The password reset URL is included between "<>"s most
+    // email clients hide this in the output as they treat it as an HTML tag..
+    add_filter( 'retrieve_password_message', [ $this, 'fix_password_message'], PHP_INT_MAX, 1 );
+    return $this;
+  }
+  function fix_password_message( $mess ) {
+    return preg_replace( '/(following address:\s+)<(.*?)>/','$1[$2]', $mess );
+  }
+  function fix_acf_fields() {
+    // Remove disabled tags from markup...
+    add_filter( 'acf/update_value/type=medium_editor', [$this,'fix_medium_editor_update_value'], PHP_INT_MAX, 3 );
+    // Add <p> tags if none are included to stop screwed up output!
+    add_filter( 'acf/format_value/type=wysiwyg',       [$this,'fix_wysiwyg_format_value'],       PHP_INT_MAX, 3 );
+    return $this;
+  }
+
+  function fix_wysiwyg_format_value( $value, $post_id, $field ) {
+    return preg_match('/^\s*</',$value) ? $value : '<p>'.$value.'</p>';   
+  }
+
+  function fix_medium_editor_update_value( $value, $post_id, $field ) {
+    if( is_string($value) ) {
+      if( ! in_array('bold', $field['standard_buttons'] ) ) {
+        $value = preg_replace( '/<\/?b>/', '', $value );
+      }
+      if( ! in_array('italic', $field['standard_buttons'] ) ) {
+        $value = preg_replace( '/<\/?i>/', '', $value );
+      }
+      if( ! in_array('underline', $field['standard_buttons'] ) ) {
+        $value = preg_replace( '/<\/?u>/', '', $value );
+      }
+      $value = trim(preg_replace('/\s+/s', ' ', $value));
+    }
+    return $value;
+  }
+
+  function add_template_column() {
+    add_action( 'manage_page_posts_custom_column', [ $this, 'template_column' ], 10, 2 );
+    add_filter( 'manage_page_posts_columns',       function( $columns ) { return array_merge( $columns, [ '_wp_page_template' => 'Template'] ); } );
+    return $this;
+  }
+  function template_column( $column, $post_id ) {
+    if( $column == '_wp_page_template' ) {
+      $q = get_post_meta( $post_id, '_wp_page_template' );
+      if( isset($q) and is_array($q) ) {
+        print preg_replace('/-/',' ', $this->hr( preg_replace( '/\.php$/', '', $q[0] ) ) );
+      }
+    }
+    return;
+  }
   function set_date_format( $s ) {
     $this->date_format = $s;
     return $this;
@@ -148,16 +226,43 @@ class BaseThemeClass {
     return $this;
   }
 
-//----------------------------------------------------------------------
-// Add CSS/javascript files from definition list...
+//======================================================================
+//
+// Add CSS/javascript files condigured in the class "DEFN" constant
+//
+// $this->add_my_scripts_and_stylesheets() in class initialization
+// function does this
+//
+// [enqueue_scripts and enqueue_admin_scripts are the functions which
+// do the work]
+//
 // If they start with http or / then they are treated as absolute
-// o/w they are treated relative to the template directory...
-//----------------------------------------------------------------------
+// o/w they are treated relative to the theme's template directory...
+//
+// For the javascript if the "filename" is an array the
+//  * The first element is the name of the file
+//  * The second element is the location of the JS head/foot
+//    (defaults head)
+//  * If admin script the third element is the role's for which the
+//    javascript is included.
+//
+//======================================================================
 
   function add_my_scripts_and_stylesheets() {
     add_action( 'wp_enqueue_scripts',     array( $this, 'enqueue_scripts'        ), PHP_INT_MAX );
     add_action( 'admin_enqueue_scripts',  array( $this, 'enqueue_admin_scripts'  ), PHP_INT_MAX );
     return $this;
+  }
+
+  public function disabled( $feature_name ) {
+    if( ! array_key_exists( $feature_name, $this->defn['FEATURES'] ) ) {
+      return false;
+    }
+    $flag = $this->defn['FEATURES'][$feature_name];
+    if( is_array( $flag ) ) {
+      $flag = array_pop( $flag );
+    }
+    return !$flag;
   }
 
   public function enqueue_scripts() {
@@ -293,6 +398,9 @@ class BaseThemeClass {
   }
 
   public function stop_wordpress_screwing_up_image_widths_with_captions() {
+    if( $this->disabled( 'captioned_widths' ) ) {
+      return $this;
+    }
     add_filter(    'post_thumbnail_html',            array( $this, 'remove_width_attribute'  ), PHP_INT_MAX );
     add_filter(    'image_send_to_editor',           array( $this, 'remove_width_attribute'  ), PHP_INT_MAX );
     add_filter(    'get_image_tag',                  array( $this, 'remove_width_attribute'  ), PHP_INT_MAX );
@@ -343,7 +451,7 @@ class BaseThemeClass {
 
   function block_render( $block, $content = '', $is_preview = false, $post_id = 0 ) {
     $template_code = 'block-'.$this->cr( $block['title'] );
-    
+
     print $this->render(
       $template_code,
       array_merge(
@@ -352,7 +460,7 @@ class BaseThemeClass {
       )
     );
   }
-  
+
   function define_block( $name, $fields, $extra ) {
     if( ! function_exists('acf_register_block_type') ) {
       return $this->show_error( 'ACF plugin not installed or does not support blocks', true );
@@ -381,7 +489,7 @@ class BaseThemeClass {
       'label_placement' => isset( $extra['labels'] ) ? $extra['labels'] : 'left',
     ];
     $prefix            = isset( $extra['prefix'] ) ? $extra['prefix'].'_' : '';
-    $fg_defn['fields'] = $this->munge_fields( $prefix, $fields, $type );
+    $fg_defn['fields'] = $this->munge_fields( $prefix, $fields, $type, '' );
     register_field_group( $fg_defn );
     return $this;
   }
@@ -429,9 +537,10 @@ class BaseThemeClass {
     // Allow a prefix for type so we don't have issues of field name clash
     // across multiple types....
     $prefix         = isset( $extra['prefix'] ) ? $extra['prefix'].'_' : '';
-    $defn['fields'] = $this->munge_fields( $prefix, $fields, $type );
+    $defn['fields'] = $this->munge_fields( $prefix, $fields, $type, '' );
     // Finally register the acf group to generate the admin interface!
     register_field_group( $defn );
+    //$t = fopen( '/tmp/variables.txt', 'a' ); ob_start(); var_export( $defn ); fwrite( $t, '$def["'.$type.'"] = '.ob_get_clean().";\n\n" ); fclose( $t );
     if( isset( $extra['fields'] ) ) {
       foreach( $extra['fields'] as $fg ) {
         $pos++;
@@ -439,7 +548,7 @@ class BaseThemeClass {
         $defn[ 'title'            ] = $fg['title'];
         $defn[ 'menu_order'       ]++;
         $defn[ 'label_placement'  ] = isset( $fg['labels'] ) ? $fg['labels'] : 'left';
-        $defn[ 'fields'           ] = $this->munge_fields( $prefix.$fg['type'], $fg['fields'], $type );
+        $defn[ 'fields'           ] = $this->munge_fields( $prefix.$fg['type'].'_', $fg['fields'], $type, $fg['type'].'_' );
         $defn[ 'options'          ] = [ 'position' => 'normal' ];
         register_field_group( $defn );
       }
@@ -447,16 +556,19 @@ class BaseThemeClass {
 
     if( array_key_exists( 'title_template', $extra ) ) {
       add_filter( 'wp_insert_post_data', function( $post_data ) use ($type,$prefix,$extra) {
-        if( $post_data[ 'post_type' ] === $type && array_key_exists( 'acf', $_POST ) ) { 
-          $post_data[ 'post_title' ] = preg_replace_callback( '/\[\[([.\w]+)\]\]/',
-            function( $m ) use ( $prefix ) {
-              $t = $_POST['acf'];
-              foreach( explode('.',$m[1]) as $k ) {
-                $t = $t[ "field_${prefix}$k" ];
-              }
-              return $t;
-            },
-            $extra['title_template'] );
+        if( $post_data[ 'post_type' ] === $type && array_key_exists( 'acf', $_POST ) ) {
+          $post_data[ 'post_title' ] = trim(preg_replace( '/\s+/', ' ',
+            preg_replace_callback( '/\[\[([.\w]+)\]\]/',
+              function( $m ) use ( $prefix ) {
+                $t = $_POST['acf'];
+                foreach( explode('.',$m[1]) as $k ) {
+                  $t = $t[ "field_${prefix}$k" ];
+                }
+                return $t;
+              },
+              $extra['title_template']
+            )
+          ));
         }
         return $post_data;
       } );
@@ -493,26 +605,42 @@ class BaseThemeClass {
   }
 
 // Nasty re-cursive code - munges fields + add sub_fields/layouts....
-  function munge_fields( $prefix, $fields, $type ) {
+  function munge_fields( $prefix, $fields, $type, $field_prefix ) {
     // and add fields to it... note we don't have complex fields here!!!
     $munged = [];
     foreach( $fields as $field => $def ) {
       $code = isset( $def['code'] ) ? $def['code'] : $this->cr( $field ); // Auto generate code for field, along with name etc..
       $me = ['key'=>'field_'.$prefix.$code, 'label' => $field, 'name' => $code, 'layout' => 'row' ];
       if( ! array_key_exists( 'type', $def ) ) {
-        error_log( "$prefix - $code - type missing )" );
+        error_log( "                                                                                       " );
+        error_log( "BASE THEME CLASS: Definition of '$code' for '$type' object - has no type defined       " );
+        error_log( "                                                                                       " );
       }
       if( array_key_exists( 'type', $def ) && array_key_exists( $def['type'], EXTRA_SETUP ) ) {
-        $me = array_merge( $me, EXTRA_SETUP[ $def['type'] ] );
+        $me = array_merge( $me, EXTRA_SETUP[ $def[
+          ( array_key_exists( 'alt', $def ) && array_key_exists( $def['alt'], EXTRA_SETUP ) ) ? 'alt' : 'type'
+        ] ] );
       }
       if( is_array( $def ) ) {
         $me = array_merge( $me, $def );
       }
       if( isset( $def['sub_fields'] ) ){
-        $me['sub_fields'] = $this->munge_fields( $prefix.$code.'_', $def['sub_fields'], $type );
+        $me['sub_fields'] = $this->munge_fields( $prefix.$code.'_', $def['sub_fields'], $type, $field_prefix.$code.'_' );
       }
       if( isset( $def['layouts'] ) ){
-        $me[ 'layouts' ] = $this->munge_fields(  $prefix.$code.'_', $def['layouts'], $type );
+        $me[ 'layouts' ] = $this->munge_fields(  $prefix.$code.'_', $def['layouts'], $type, $field_prefix.$code.'_' );
+      }
+      if( array_key_exists( 'admin', $def ) ) {
+        // Now we need to add the columns to the interface
+        $fn = "acf-$field_prefix$code";
+        $cn = $def['admin'] == 1 ? $me['label'] : $def['admin'];
+        add_action( 'manage_'.$type.'_posts_custom_column',   [ $this, 'acf_custom_column'        ], 10, 2  );
+        add_filter( 'manage_'.$type.'_posts_columns',         function( $columns ) use ($fn, $cn ) {
+          return array_merge( $columns, [ $fn => $cn ] );
+        });
+        add_filter( 'manage_edit-'.$type.'_sortable_columns', function( $columns ) use ($fn, $cn ) {
+          return array_merge( $columns, [ $fn => $cn ] );
+        });
       }
       $munged[]=$me;
     }
@@ -535,7 +663,12 @@ class BaseThemeClass {
     // Define icon this is a dashicon icon....
     $icon       = isset( $def['icon']   ) ? $def['icon']   : 'admin-page';
 
-    register_post_type( $code, [
+    $this->custom_types[ $code ] = [ 'icon' => 'dashicons-'.$icon, 'name' => $name, 'names' => $plural ];
+
+    $add = array_key_exists('add',$def)
+         ? [ 'map_meta_cap' => true,'capability_type' => 'post', 'capabilities' => [ 'create_posts' => $def['add'] ], ]
+         : [];
+    register_post_type( $code, array_merge($add,[
       'public'       => true,
       'has_archive'  => true,
       'menu_icon'    => 'dashicons-'.$icon,
@@ -552,8 +685,156 @@ class BaseThemeClass {
         'singular_name'    => __($name),
         'name'             => __($plural)
       ]
-    ] );
+    ]) );
     return $this;
+  }
+
+// The main dashboard page of the wordpress admin has an "At a glance section" which includes
+// counts of published pages and posts... This doesn't include custom post types - so we have
+// to add these - note we keep a list of custom post types in the custom_types hash (the type
+// is the key - and the values are the icon and name (singular/plural) we use this to generate
+// the markup... Which is an array of values to go in "ul > li" list elements..
+// (Elements is passed in for this script to add to!)
+
+  function extend_at_a_glance() {
+    add_filter( 'dashboard_glance_items', [ $this, 'add_custom_post_types_to_at_a_glance' ] );
+    add_filter( 'dashboard_recent_posts_query_args', [ $this, 'add_custom_post_types_to_activity' ] );
+    return $this;
+  }
+
+  function add_custom_post_types_to_activity( $query_args ) {
+    $query_args['post_type'] = is_array( $query_args['post_type'] )
+                             ? array_merge( $query_args['post_type'], ['page'], array_keys($this->custom_types) )
+                             : array_merge( ['post','page'], array_keys($this->custom_types) )
+                             ;
+    $query_args['posts_per_page'] = 10;
+    return $query_args;
+  }
+
+  function add_custom_post_types_to_at_a_glance( $elements ) {
+    $t = wp_count_posts( 'post' )->publish + wp_count_posts( 'page' )->publish;
+    foreach( $this->custom_types as $type => $def ) {
+      $num_posts = wp_count_posts( $type )->publish;
+      $t += $num_posts;
+      $elements[] = sprintf( '<a class="%s" href="/wp-admin/edit.php?post_type=%s">%d %s</a>',
+        $def['icon'], $type, $num_posts, _n( $def['name'], $def['names'], $num_posts ) );
+    }
+    $elements[] = "<strong>TOTAL: $t POSTS</strong>";
+    return $elements;
+  }
+
+// Reconfigure the wordpress dashboard - the standard dashboard is OK for a single editor - but
+// we have approximately a thousand editors so we really need to re-arrange this a bit - get
+// rid of the adminy bits - and add in our special "all my stuff panel"....
+// $this->reconfigure_dashboard_and_show_my_posts()
+//     links in code to add a custom widget panel on the main dashboard
+//     page to show all content that the user has. In turn, the
+//     following method is called:
+// $this->reconfigure_dashboard()
+//     this moves the current 2nd column to the fourth column
+//     and moves the first column into the second column, and
+//     finally replaces the first column with out "my posts" panel...
+// $this->dashboard_my_pages_and_objects()
+//     Looks for entries for which I'm a co-author of (or owner of if coauthors not activated)
+//     - any type: posts, pages, custom post types - using a taxonomy query (this
+//     is how co-authors stores the "ownership" of files {or direct author query if no co-authors}
+//     This then lists the entries in reverse time order of modification
+
+
+  function reconfigure_dashboard_and_show_my_posts() {
+    add_action( 'wp_dashboard_setup', [ $this, 'reconfigure_dashboard' ] );
+    add_action( 'rest_api_init', function () {
+       register_rest_route( 'base', 'search/(?P<s>.+)', array(
+         'methods' => 'GET',
+         'callback' => [ $this, 'my_admin_search' ]
+       ) );
+    } );
+    return $this;
+  }
+
+  function reconfigure_dashboard() {
+    global $wp_meta_boxes;
+    // Move the "side" 2nd column to the fourth column
+    $wp_meta_boxies['dashboard']['column4'] = $wp_meta_boxes['dashboard']['side'];                                      // Push 2nd column into 4th column
+    // Clear the 2nd column... and move the new widget from the bottom of the left hand column to the 2nd column!
+    $wp_meta_boxes['dashboard']['side']     = $wp_meta_boxes['dashboard']['normal'];                                    // Move first column into second column
+    //$wp_meta_boxes['dashboard']['normal']   = ['core'=>[ array_pop( $wp_meta_boxes['dashboard']['side']['core'] ) ]];   // Create new column (with last element of 3rd col)
+    $wp_meta_boxes['dashboard']['normal']   = [];
+    wp_add_dashboard_widget('custom_help_widget', 'My pages and objects', [$this, 'dashboard_my_pages_and_objects' ]);  // Add custom widget
+    wp_add_dashboard_widget('custom_search_widget', 'Quick Search',             [$this, 'custom_search_box' ]);  // Add custom widget
+  }
+
+  function my_admin_search( $data ) {
+    $q = new WP_Query;
+    $labels = [];
+    return array_map(
+       function($r) use ($labels) {
+         if( !array_key_exists($r->post_type, $labels ) ) {
+           $labels[$r->post_type] = get_post_type_labels(get_post_type_object($r->post_type))->singular_name;
+         }
+         return [
+           get_permalink( $r->ID ),
+           $r->post_title,
+           $labels[$r->post_type],
+           $r->ID,
+         ];
+       },
+       $q->query( [
+         'cache_results'          => false,
+         'update_post_term_cache' => false,
+         'update_post_meta_cache' => false,
+         'posts_per_page'         => 10,
+         'post_type'              => 'any',
+         'post_status'            => [ 'draft', 'publish' ],
+         's'                      => urldecode($data['s']),
+       ] )
+    );
+  }
+
+  function custom_search_box() {
+    echo '<input id="searchbox" type="text" name="in" style="width:100%" />';
+    echo '<ul id="search-results"></ul>';
+    echo '<p><em>Enter at least 3 characters to search through all posts</em></p>';
+  }
+  function dashboard_my_pages_and_objects() {
+    $query        = new WP_Query;
+    $u   = wp_get_current_user();
+    if( is_plugin_active( 'co-authors-plus/co-authors-plus.php' ) ) { // Coauthors+ is enabled so use taxonomy information
+      $un  = $u->user_nicename; // $un = 'oauth2-mt9-sanger-ac-uk'; // TEST TO SEE OTHERS LIST!
+      $entries = $query->query( [
+        'cache_results'=>false,'update_post_term_cache'=>false,'update_post_meta_cache'=>false,'posts_per_page'=>-1,
+        'tax_query' => [[ 'taxonomy' => 'author', 'field' => 'slug', 'terms' => "cap-$un" ]],
+        'order'   => 'DESC',
+        'orderby' => 'modified',
+      ] );
+    } else { // Just look for "owned" by the current author!
+      $entries = $query->query( [
+        'cache_results' => false,'update_post_term_cache'=>false,'update_post_meta_cache'=>false,'posts_per_page'=>-1,
+        'author'        => $u->ID,
+        'order'         => 'DESC',
+        'orderby'       => 'modified',
+      ] );
+    }
+    if( sizeof( $entries ) ) { // If we have entries display them (may need to limit if more than say 40?)
+      echo '<p>You are an author of the following pages:</p><ol>';
+      $labels = [];
+      foreach ( $entries as $x ) {
+        if( !array_key_exists($x->post_type, $labels ) ) {
+          $labels[$x->post_type] = get_post_type_labels(get_post_type_object($x->post_type))->singular_name;
+        }
+        printf( '<li>%s%s: <a href="%s">%s (%s)</a>%s</li>',
+          $x->post_status === 'publish' ? '<strong>' : '<em>',
+          $labels[$x->post_type],
+          current_user_can( 'edit_post', $x->ID ) ? get_edit_post_link( $x->ID ) : get_permalink( $x->ID ),
+          HTMLentities($x->post_title),
+          substr($x->post_modified,0,10),
+          $x->post_status === 'publish' ? '</strong>' : '</em>'
+        );
+      }
+      echo '</ol>';
+    } else { // Otherwise show we have not pages/posts...
+      echo '<p>You do not currently have any pages/posts on the Sanger website</p>';
+    }
   }
 
 //----------------------------------------------------------------------
@@ -600,15 +881,22 @@ class BaseThemeClass {
   function create_custom_theme_params( $wp_customize ) {
     $params = [ 'email_domain' => [
       'type'        => 'text',
-      'section'     => 'title_tagline',
+      'section'     => 'base-theme-class',
       'default'     => 'mydomainname.org.uk',
       'description' => 'Specify the domain for email addresses.'
     ], 'publication_options' => [
       'type'        => 'text',
-      'section'     => 'title_tagline',
+      'section'     => 'base-theme-class',
       'default'     => '',
       'description' => 'Options for publications listings',
+    ], 'coauthor_options' => [
+      'type'        => 'radio',
+      'choices'     => [ 'admin' => 'Administrator', 'owner' => 'Owner', 'author' => 'Author' ],
+      'section'     => 'base-theme-class',
+      'default'     => 'admin',
+      'description' => 'Adding authors is restricted to',
     ] ];
+    $wp_customize->add_section( 'base-theme-class', [ 'title' => __( 'Base theme class settings'), 'priority' => 30 ] );
     if( isset( $this->defn[ 'PARAMETERS' ] ) ) {
       $params = array_merge( $params, $this->defn[ 'PARAMETERS' ] );
     }
@@ -616,16 +904,18 @@ class BaseThemeClass {
       $name = isset( $def['name'] ) ? $def['name'] : $this->hr( $par );
       $type = isset( $def['type'] ) ? $def['type'] : 'text';
       $sanitize = 'sanitize_text_field';
-      $wp_customize->add_setting( $par, array(
-        'default'           => isset( $def['default'] ) ? $def['default'] : '',
-        'sanitize_callback' => $sanitize
-      ) );
-      $wp_customize->add_control( $par, array(
+      $options =  [ 'default'           => isset( $def['default'] ) ? $def['default'] : '' ];
+      if( $type === 'text' ) $options['sanitize_callback'] = 'sanitize_text_field';
+      $wp_customize->add_setting( $par, $options );
+      $options = [
         'type'        => $type,
-        'section'     => $def['section'],
         'label'       => __( $name ),
         'description' => __( isset( $def['description'] ) ? $def['description'] : '' )
-      ));
+      ];
+      foreach( [ 'section', 'choices' ] as $k ) {
+        if(array_key_exists($k,$def) ) {  $options[$k] = $def[$k]; }
+      }
+      $wp_customize->add_control( $par, $options );
     }
   }
 
@@ -640,11 +930,15 @@ class BaseThemeClass {
 // 2) Remove the new post and comments link from this menu bar!
 //----------------------------------------------------------------------
 
-  function remove_comments_admin() {
+  function remove_posts_admin() {
     add_action( 'admin_bar_menu',             array( $this, 'change_default_new_link' ), PHP_INT_MAX-1 );
-    add_action( 'admin_menu',                 array( $this, 'remove_posts_sidebar') );
-    add_filter( 'manage_edit-post_columns',   array( $this, 'remove_post_columns') ,10,1);
-    add_filter( 'manage_edit-page_columns',   array( $this, 'remove_page_columns') ,10,1);
+    add_action( 'admin_menu',                 array( $this, 'remove_posts_sidebar' ) );
+  }
+
+  function remove_comments_admin() {
+    add_action( 'admin_menu',                 array( $this, 'remove_comments_sidebar') );
+    add_filter( 'manage_edit-post_columns',   array( $this, 'remove_comments_column') ,10,1);
+    add_filter( 'manage_edit-page_columns',   array( $this, 'remove_comments_column') ,10,1);
     return $this;
   }
 
@@ -670,30 +964,32 @@ class BaseThemeClass {
     $wp_admin_bar->remove_node('new-content');
     $wp_admin_bar->add_node( $new_content_node);
     $wp_admin_bar->remove_menu('comments');
-    $wp_admin_bar->remove_node('new-post');
+ //   $wp_admin_bar->remove_node('new-post');
     $wp_admin_bar->remove_menu('wp-logo');   // Not to do with posts - but good to get rid of in admin interface!
   }
 
 
   // Remove posts sidebar entries...
   function remove_posts_sidebar() {
+    $this->remove_sidebar_entry('edit.php');
+  }
+  // Remove comments from post/page listings...
+  function remove_comments_sidebar() {
+    $this->remove_sidebar_entry('edit-comments.php');
+  }
+  function remove_sidebar_entry( $name ) {
     global $menu;
-    $remove_menu_items = [ 'edit-comments.php', 'edit.php' ];
     end($menu);
-    while (prev($menu)){
-      if( in_array( $menu[key($menu)][2], $remove_menu_items ) ) {
-        unset($menu[key($menu)]);
+    while( prev($menu) ) {
+      if( $menu[key($menu)][2] == $name ) {
+        unset( $menu[key($menu)] );
+        return;
       }
     }
   }
 
-  // Remove columns from post/page listings...
-  function remove_post_columns($columns) {
-    unset($columns['comments']);
-    return $columns;
-  }
-
-  function remove_page_columns($columns) {
+  // Remove comments from post/page listings...
+  function remove_comments_column($columns) {
     unset($columns['comments']);
     return $columns;
   }
@@ -716,13 +1012,25 @@ class BaseThemeClass {
   }
 
   function publications_shortcode( $atts, $content = null ) {
+    if( ! is_array( $atts) ) {
+      $atts = [$atts];
+    }
+    $class='pub-simple';
+    if( isset( $atts['class'] ) ) {
+      $class=$atts['class'];
+      unset($atts['class']);
+    } else {
+      $class = 'publications_list';
+    }
     return sprintf(
 '
-<div class="ajax_publications" data-ids="%s %s">Loading publications...</div>
+<div class="ajax_publications %s" data-ids="%s %s"><span class="loading_publications">Loading publications...</span></div>
 ',
+      $class,
       HTMLentities( get_theme_mod( 'publication_options' ) ),
       HTMLentities( implode( ' ', $atts ) )
-    );
+    ).
+    $this->add_script( '', 'show_pubs(".ajax_publications")' );
   }
 
   // Short code: [email_link {email} {link text}?]
@@ -734,6 +1042,9 @@ class BaseThemeClass {
   //
 
   function email_link( $atts, $content = null ) {
+    if( ! is_array( $atts) ) {
+      $atts = [$atts];
+    }
     $email = array_shift( $atts );
     if( !$email ) { // If no email provided die!!
       return '';
@@ -768,6 +1079,7 @@ class BaseThemeClass {
 
   function initialize_templates() {
     $this->templates      = [];
+    $this->switchers      = [];
     $this->preprocessors  = [];
     $this->postprocessors = [];
     $this->debug          = false;
@@ -782,26 +1094,36 @@ class BaseThemeClass {
       'templates' => function( $t_data, $extra ) {
         if( is_array( $t_data ) ) {
           return implode( '', array_map(function($row) use ($extra) {
-            return $this->expand_template( $this->template_name( $extra, $row ), $row );
+            $tn =  $this->template_name( $extra, $row );
+            return $this->expand_template( $tn, $row );
           }, $t_data ));
         }
         return '';
       },
       'template'  => function( $t_data, $extra ) {
-        return $this->expand_template( $this->template_name( $extra, $t_data ), $t_data );
+        $tn =  $this->template_name( $extra, $t_data );
+        return $this->expand_template( $tn, $t_data );
       }
     ];
     $this->scalar_methods = [
+      'ucfirst'   => function( $s ) { return ucfirst($s); },
+      'hr'        => function( $s ) { return $this->hr($s); },
+      'cr'        => function( $s ) { return $this->cr($s); },
+      'uc'        => function( $s ) { return strtoupper($s); },
+      'lc'        => function( $s ) { return strtolower($s); },
       'raw'       => function( $s ) { return $s; },
-      'date'      => function( $s ) { return $s ? date_format( date_create( $s ), $this->date_format ) : '-'; },
+      'date'      => function( $s ) { return $s ? date_format( date_create( $s ), $this->date_format ) : ''; },
       'enc'       => 'rawurlencode',
       'rand_enc'  => function( $s ) { return $this->random_url_encode( $s ); },
       'integer'   => 'intval',
       'boolean'   => function( $s ) { return $s ? 'true' : 'false'; },
       'shortcode' => 'do_shortcode',
       'strip'     => function( $s ) { return preg_replace( '/\s*\b(height|width)=["\']\d+["\']/', '', do_shortcode( $s ) ); },
+      'spliturl'  => function( $s ) { return preg_replace( '/([.\/])(?![.\/])/','\1<wbr/>', HTMLentities($s) ); },
       'rand_html' => function( $s ) { return $this->random_html_entities( $s ); },
       'html'      => 'HTMLentities',
+      'post_url_link' => function( $s ) { return HTMLentities(get_permalink( $s )); },
+      'post_url_raw'  => function( $s ) { return get_permalink( $s ); },
       'email'     => function( $s ) { // embeds an email link into the page!
         $s = strpos( $s, '@' ) !== false ? $s : $s.'@'.get_theme_mod('email_domain');
         return sprintf( '<a href="mailto:%s">%s</a>', $this->random_url_encode( $s ),
@@ -809,6 +1131,14 @@ class BaseThemeClass {
       },
       'wp'        => function( $s ) { // Used to call one of the standard wordpress template blocks
          switch( $s ) {
+           case 'part-' === substr( $s, 0, 5) :
+             ob_start();
+             get_template_part( substr( $s, 5 ) );
+             return ob_get_clean();
+           case 'prev_index' :
+             return $this->index;
+           case 'index' :
+             return ++$this->index;
            case 'charset' :
              return get_bloginfo( 'charset' );
            case 'lang':
@@ -851,15 +1181,22 @@ class BaseThemeClass {
     }
     if( is_array( $template ) ) {
       if( array_key_exists( 'template', $template ) ){
+        if( array_key_exists( 'switch', $template ) ) {
+          $this->add_switcher( $key, $template['switch'] );
+        }
         if( array_key_exists( 'pre', $template ) ) {
           $this->add_preprocessor( $key, $template['pre'] );
         }
         $this->add_template( $key, $template['template'] );
-      #  $this->templates[$key][] = $template['template'];
         if( array_key_exists( 'post', $template ) ) {
           $this->add_postprocessor( $key, $template['post'] );
         }
         return $this;
+      } else { // Switch needs to be outwith template logic as well - as we may not have a real template
+        if( array_key_exists( 'switch', $template ) ) {      // Just some logic as to which template to use
+          $this->add_switcher( $key, $template['switch'] );  // or just to chose another template
+          $this->add_template( $key, "{{{{STUB TEMPLATE FOR EMPTY SWITCH}}}}" );
+        }
       }
       foreach( $template as $t ) {
         $this->templates[$key][] = $t;
@@ -872,7 +1209,7 @@ class BaseThemeClass {
 
   public function load_from_file( $filename ) {
     $full_path = $this->template_directory.'/'.$filename;
-    if( file_exists( $full_path ) ) {
+    if( file_exists( $full_path ) && substr($full_path,-4,4) == '.php' ) {
       $templates = include $full_path;
       foreach( $templates as $key => $template ) {
         $this->add_template( $key, $template );
@@ -887,7 +1224,7 @@ class BaseThemeClass {
       if( is_dir( $full_path ) ) {
         if( $dh = opendir($full_path) ) {
           while( ($file = readdir($dh)) !== false ) {
-            if( '.' !== substr($file,0,1) ) {
+            if( '.' !== substr($file,0,1) && '~' !== substr($file,-1) ) {
               $this->load_from_directory( $dirname.'/'.$file );
             }
           }
@@ -905,10 +1242,12 @@ class BaseThemeClass {
 
   public function dump_templates( ) {
     print '<pre style="height:800px;overflow:scrollbar">';
-    print '<h4>Templates</h4>';
-    print_r( $this->templates );
+    print '<h4>Switchers</h4>';
+    print_r( $this->switchers );
     print '<h4>Pre-processors</h4>';
     print_r( $this->preprocessors );
+    print '<h4>Templates</h4>';
+    print_r( $this->templates );
     print '<h4>Post-processors</h4>';
     print_r( $this->postprocessors );
     print '</pre>';
@@ -916,6 +1255,11 @@ class BaseThemeClass {
   }
 
 // Pre-processor code...
+
+  public function add_switcher( $key, $function ) {
+    $this->switchers[ $key ] = $function;
+    return $this;
+  }
 
   public function add_preprocessor( $key, $function ) {
     $this->preprocessors[ $key ] = $function;
@@ -959,26 +1303,37 @@ class BaseThemeClass {
     return $flag ? $this : '';
   }
 
-  protected function expand_template( $template_code, $data) {
+  protected function expand_template( $template_code, $data ) {
     if( ! array_key_exists( $template_code, $this->templates ) ) {
       return $this->show_error( "Template '$template_code' is missing" );
     }
     // Apply any pre-processors to data - thie munges/amends the data-structure
     // being passed...
+    if( array_key_exists( $template_code, $this->switchers ) ) {
+      $function = $this->switchers[$template_code];
+      $t = $function( $data, $this );
+      if( $t === false ) {
+        return '';
+      }
+      if( $t ) {
+        return $this->expand_template( $t, $data );
+      }
+    }
     if( array_key_exists( $template_code, $this->preprocessors ) ) {
       $function = $this->preprocessors[$template_code];
       $data = $function( $data, $this );
     }
-    $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-@~.\w+]+)(?::([^\]]+))?\]\]/',
+    $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-@~.!\w+]+)(?::([^\]]+))?\]\]/',
        implode('|',array_keys( $this->array_methods )),
        implode('|',array_keys( $this->scalar_methods )) );
+
     $out = implode( '', array_map(
       function( $t ) use ( $data, $template_code, $regexp ) {
         return is_object($t) && ($t instanceof Closure)
       ? $t( $data, $template_code ) // If the template being parsed is a closure then we call the function
       : preg_replace_callback(      // It's a string so parse it - regexps are wonderful things!!!
           $regexp,
-          function($match) use ($data, $template_code) {
+          function($match) use ($data, $template_code ) {
             // For each substitute - get the parsed values....
 
             list( $render_type, $variable, $extra ) = [ $match[1], $match[2], array_key_exists( 3, $match ) ? $match[3] : '' ];
@@ -996,6 +1351,7 @@ class BaseThemeClass {
             if( array_key_exists( $render_type, $this->scalar_methods ) ) {
               return $this->scalar_methods[ $render_type ]( $t_data );
             }
+            if( !is_scalar( $t_data ) ) { error_log( $template_code.' '.gettype( $t_data ) ); error_log( print_r( $t_data, 1 ) ); }
             return HTMLentities( $t_data );
           },
           $t
@@ -1035,6 +1391,10 @@ class BaseThemeClass {
         foreach( explode( '.', $variable ) as $key ) {
           // Missing data
           if( is_object( $t_data) ) {
+            if( substr( $key, 0, 1 ) === '!' ) {
+              $t_data = get_field( substr($key,1), $t_data->ID );
+              continue;
+            }
             if( $key == '@' ) {
               $key = 'comment_count';
             }
@@ -1069,10 +1429,11 @@ class BaseThemeClass {
 
   function render( $template_code, $data = [] ) {
     return $this->collapse_empty(
+      preg_replace('/~EMPTY~/',                                '', // Hold empty attribute open!!
       preg_replace('/<a\s[^>]*?href=""[^>]*>.*?<\/a>/s',       '', // Empty links
       preg_replace('/<iframe\s[^>]*?src=""[^>]*><\/iframe>/',  '', // Empty iframes
       preg_replace('/<img\s[^>]*?src=""[^>]*>/',               '', // Empty images
-        $this->expand_template( $template_code, $data ) ) ) ) );
+        $this->expand_template( $template_code, $data, "RENDER" ) ) ) ) ) );
   }
 
   function output( $template_code, $data = [] ) {
@@ -1081,14 +1442,21 @@ class BaseThemeClass {
   }
 
   function output_page( $page_type ) {
-    get_header();
     global $post;
-    $extra = ['ID'=>get_the_ID(), 'url'=>get_permalink(),'title'=>the_title('','',false), 'page_content' => $post->post_content ];
-    if( is_array( get_fields() ) ) {
-      $this->output( $page_type, array_merge(get_fields(),$extra) );
-    } else {
-      $this->output( $page_type, $extra );
+    $extra = [
+      'ID'=>get_the_ID(),
+      'page_url'=>get_permalink(),
+      'page_title'=>the_title('','',false),
+      'page_content' => $post->post_content
+    ];
+    $fields = get_fields();
+    $out = $this->render( $page_type, is_array($fields) ? array_merge($fields,$extra) : $extra );
+    if( ! $out ) {
+      $this->set_post( 'not-found' ); // should have a not found post set up!
+      include_once( $this->template_directory.'/'.get_page_template_slug( $GLOBALS['post']->ID ) );
     }
+    get_header();
+    print $out; 
     get_footer();
   }
 
@@ -1101,6 +1469,29 @@ class BaseThemeClass {
     return $this;
   }
 
+  function get_entry( $id ) {
+    $get_posts = new WP_Query;
+    $post = get_post( $id );
+
+    if( !$post ) {
+      return;
+    }
+    $meta = get_fields( $post->ID );
+    if( !is_array( $meta ) ) {
+      $meta = [];
+    }
+    $return = array_merge( $meta, [
+      'ID'           => $post->ID,
+      'post_title'   => $post->post_title,
+      'post_type'    => $post->post_type,
+      'post_excerpt' => $post->post_excerpt,
+      'post_content' => $post->post_content,
+      'post_url'     => get_permalink( $post ),
+      'post_name'    => $post->post_name
+    ] );
+    return $return;
+  }
+
   function get_entries( $type, $extra = array() ) {
     $get_posts = new WP_Query;
     $entries = $get_posts->query( array_merge( ['posts_per_page'=>-1,'post_type'=>$type], $extra ) );
@@ -1111,25 +1502,38 @@ class BaseThemeClass {
       if( !is_array( $meta ) ) {
         $meta = [];
       }
-      $return[] = array_merge( $meta, [ 'url' => get_permalink( $post ), 'title' => $post->post_title, 'ID' => $post->ID, 'post_name' => $post->post_name ] );
+      $return[] = array_merge( $meta, [
+        'ID'           => $post->ID,
+        'post_title'   => $post->post_title,
+        'post_type'    => $post->post_type,
+        'post_excerpt' => $post->post_excerpt,
+        'post_content' => $post->post_content,
+        'post_url'     => get_permalink( $post ),
+        'post_name'    => $post->post_name
+      ] );
     }
     return $return;
   }
 
   function get_entries_light( $type, $extra = array(), $keys = array() ) {
     $get_posts = new WP_Query;
-    error_log( memory_get_usage() );
     $entries = $get_posts->query( array_merge( ['cache_results'=>false,'update_post_term_cache'=>false,'update_post_meta_cache'=>false,'posts_per_page'=>-1,'post_type'=>$type], $extra ) );
-    error_log( memory_get_usage() );
-    $munged = $this->fetch_meta( $entries, $keys );
-    $t = array_map( function( $x ) use ($munged) {
-      return array_merge( $munged[$x->ID], [
-        'url' => get_permalink( $x ), 'title' => $x->post_title,
-        'content' => $x->post_content, 'ID' => $x->ID, 'name' => $x->post_name ]
-      );
-    }, $entries );
-    error_log( memory_get_usage() );
-    return $t;
+    if( is_array($entries) && sizeof($entries) > 0 ) {
+      $munged = $this->fetch_meta( $entries, $keys );
+      $t = array_map( function( $x ) use ($munged) {
+        return array_merge( $munged[$x->ID], [
+          'ID'           => $x->ID,
+          'post_title'   => $x->post_title,
+          'post_type'    => $x->post_type,
+          'post_excerpt' => $x->post_excerpt,
+          'post_content' => $x->post_content,
+          'post_url'     => get_permalink( $x ),
+          'post_name'    => $x->post_name ]
+        );
+      }, $entries );
+      return $t;
+    }
+    return [];
   }
 
 //----------------------------------------------------------------------
@@ -1169,7 +1573,9 @@ class BaseThemeClass {
       // Trim empty tags -- a, span, p, div, h[1-6], ...
       list($munged,$html_str) = array(
         $html_str,
-        preg_replace( '/<(li|ol|ul|a|span|p|div|h\d)[^>]*>\s*<\/\1>/', '', $html_str )
+        preg_replace_callback( '/<(li|ol|ul|a|span|p|div|h\d)[^>]*>\s*<\/\1>/', function( $matches ) {
+          return strpos($matches[0],'keep') === false ? '' : $matches[0];
+        }, $html_str )
       );
     }
     return preg_replace( '/\s*[\r\n]+\s*[\r\n]/', "\n", $html_str ); // Remove blank lines
@@ -1178,12 +1584,12 @@ class BaseThemeClass {
 // The following functions are looking at defining a new role which would
 // allow assigning editors to individual pages
   function add_roles_on_plugin_activation() {
-    add_role( 'content_dditor', 'Content editor', [ 'read' => true, 'edit_posts' => true, 'edit_owned_posts' => true ] );
+    add_role( 'content_editor', 'Content editor', [ 'read' => true, 'edit_posts' => true, 'edit_owned_posts' => true ] );
   }
 
   function content_editor_filter( ) {
     global $wp_query;
-    if( ! is_admin() ) { 
+    if( ! is_admin() ) {
       return;
     }
     $user = wp_get_current_user();
@@ -1216,25 +1622,6 @@ class BaseThemeClass {
     return $this;
   }
 
-  // Wrapper around co-authors to allow authors to add other authors...
-  function allow_authors_to_add_authors() {
-    add_filter( 'coauthors_plus_edit_authors', [ $this, 'let_me_add_other_authors' ] );
-  }
-
-  function let_me_add_other_authors( $can_set_authors ) {
-    if( $can_set_authors ) {       // We know that the person can edit so
-      return $can_set_authors;     // return true!
-    }
-    $post         = get_post();                  // Am I an author!
-    $authors      = get_coauthors( $post->ID );  // if so let me edit permissions
-    $current_user = wp_get_current_user();       // This may not be strictly necessary
-    foreach( $authors as $auth )  {              // But it's belt and braces!
-      if( $auth->ID === $current_user->ID ) {
-        return true;
-      }
-    }
-    return false;
-  }
 
   function register_new_role() {
     register_activation_hook( __FILE__, [ $this, 'add_roles_on_plugin_activation' ] );
@@ -1249,30 +1636,49 @@ class BaseThemeClass {
         'helps' => __( 'Enter credit details for image' ),
         'input'  => 'text'
     );
+/*
+    $field_value = get_post_meta( $post->ID, 'image_size', true );
+    $value = $field_value ? $field_value : 'full';
+    $html = '';
+    foreach( ['thumbnail','medium','large','full'] as $size ) {
+      $html .= '<option value="'.$size.'"'.($size == $value ?' selected="selected"' : '').'>'.$size.'</option>';
+    }
+    $form_fields['image_size'] = array(
+      'label' => 'Image size',
+      'helps' => __( 'Select image size to use' ),
+      'input' => 'html',
+      'html'  => '<select id="attachments-'.$post->ID.'-image_size">'.$html.'</select>',
+      'value' => $value
+    );
+*/
     return $form_fields;
   }
+
   function include_credit_as_data_attribute( $html, $id, $alt, $title ) {
     $t = get_post_meta( $id );
     $credit = $t['custom_credit'];
     if( is_array( $credit ) ) {
       $credit = $credit[0];
     }
-    if( $credit ) {
-  	  return preg_replace( '/<img /','<img data-credit="'.HTMLentities($credit).'" ', $html );
-    } else {
-      return $thml;
-    }
+//  $size = $t['image_size'];  wp_get_attachment_image_src
+    return $credit ? preg_replace( '/<img /','<img data-credit="'.HTMLentities($credit).'" ', $html ) : $html;
   }
+
   function custom_media_save_attachment( $attachment_id ) {
     if ( isset( $_REQUEST['attachments'][ $attachment_id ]['custom_credit'] ) ) {
       $custom_credit = $_REQUEST['attachments'][ $attachment_id ]['custom_credit'];
       update_post_meta( $attachment_id, 'custom_credit', $custom_credit );
+//      $image_size    = $_REQUEST['attachments'][ $attachment_id ]['image_size'];
+//      update_post_meta( $attachment_id, 'image_size', $image_size );
     }
   }
   function add_credit_code() {
-    add_filter( 'attachment_fields_to_edit', [ $this, 'custom_media_add_credit'      ], null, 2 );
-    add_action( 'edit_attachment',           [ $this, 'custom_media_save_attachment' ] );
-    add_filter('get_image_tag',              [ $this, 'include_credit_as_data_attribute' ], 0, 4);
+    add_filter( 'attachment_fields_to_edit',           [ $this, 'custom_media_add_credit'      ], null, 2 );
+    add_action( 'edit_attachment',                     [ $this, 'custom_media_save_attachment' ] );
+    add_filter( 'get_image_tag',                       [ $this, 'include_credit_as_data_attribute' ], 0, 4);
+//   add_filter( 'wp_get_attachment_image_attributes',  [ $this, 'include_credit_as_data_attribute' ], 0, 4);
+    add_action( 'wp_ajax_save-attachment-compat',  [ $this, 'custom_media_save_attachment' ], PHP_INT_MAX );
+    return $this;
   }
 
   function fetch_meta( $objects, $field_names ) {
@@ -1299,6 +1705,302 @@ class BaseThemeClass {
       $o->comment_count = $mapped[$o->ID];
     }
     return $return_scalar ? $objects[0] : $objects;
-  }  
-}
+  }
 
+//======================================================================
+//
+// Co-author plus configuration
+//
+//----------------------------------------------------------------------
+//
+// You will need to install the Co-author plus plugin to make this
+// work...
+//
+//----------------------------------------------------------------------
+//
+// Along with the configuration for the theme this does three things:
+//
+// * Enables co-authors plus on all post types (including custom types)
+// * Moves the co-authors plus configuration to the bottom of the right
+//   hand side navigation panel
+//
+//   [ These two are added by $this->enable_co_authors_plus_on_all_post_types() ]
+//
+// * Tweak co-authors plus configuration to allow one of:
+//   * Admins can add/remove authors
+//   * Owners can add/remove authors
+//   * Authors can add/remove authors [ Can steal posts! ]
+//
+//   [ This functionality is added by calling $this->allow_multiple_authors(),
+//     and configured in the web interface with co-authors
+//     theme customisation ]
+//
+//======================================================================
+
+  function enable_co_authors_plus_on_all_post_types() {
+    // Now get the custom_post types we generated and attach co-authors to them!
+    add_filter( 'coauthors_supported_post_types', function( $post_types ) { return array_merge( $post_types, array_keys($this->custom_types) ); } );
+    // The following two lines place the co-author box on the right hand side
+    // After the main page "meta-data" publish box...
+    add_filter( 'coauthors_meta_box_context',     function() { return 'side'; } ); // Move to right hand side
+    add_filter( 'coauthors_meta_box_priority',    function() { return 'low';  } ); // Place under other boxes
+    return $this;
+  }
+
+  // Wrapper around co-authors to allow authors to add other authors...
+  function restrict_who_can_manage_authors() {  // This is the default one - let the owner (first author change authors)
+    $flag = get_theme_mod('coauthor_options');
+    switch( $flag ) {
+      case 'owner':
+        add_filter( 'coauthors_plus_edit_authors', [ $this, 'let_owner_add_other_authors' ] );
+        break;
+      case 'author':
+        add_filter( 'coauthors_plus_edit_authors', [ $this, 'let_author_add_other_authors' ] );
+        break;
+    }
+    return $this;
+  }
+
+  function let_owner_add_other_authors( $can_set_authors ) {
+    $f = $can_set_authors || ( get_post() && wp_get_current_user()->ID == get_post()->post_author );
+    return $f;
+  }
+  function let_author_add_other_authors( $can_set_authors ) {
+    if( $can_set_authors ) return true; // We know that the person can edit so return true;
+    if( ! get_post() ) {
+      return false;
+    }
+    $user_id   = wp_get_current_user()->ID;
+    foreach( get_coauthors( get_post()->ID ) as $auth )  {
+      if( $auth->ID == $user_id ) return true;
+    }
+    return false;
+  }
+
+//======================================================================
+//
+// Remove ability to delete
+//
+//----------------------------------------------------------------------
+//
+// Add $this->remove_ability_to_delete() in sub-class initialization
+// to make sure ALL users cannot delete
+//
+// [disable_delete is the function which does the work and is called at
+//  the init phase]
+//
+//======================================================================
+
+  function remove_ability_to_delete() {
+    add_action( 'init', [ $this, 'disable_delete' ] );
+    return $this;
+  }
+
+  function disable_delete( ) {
+    $x = new WP_Roles();
+    $T = $x->roles;
+    foreach( $T as $role_name => $role_info ) {
+      $r = get_role( $role_name );
+      foreach( array_filter( $role_info['capabilities'], function( $k ) { return substr($k,0,7) == 'delete_' && $k != 'delete_themes'; }, ARRAY_FILTER_USE_KEY  ) as $cap => $_) {
+        $r->remove_cap( $cap );
+      }
+      ### REMOVE HACK ###
+      if( $role_name == 'administrator' ) {
+        $r->add_cap( 'delete_themes', true );
+      }
+    }
+  }
+
+//======================================================================
+//
+// Add IDs to titles in ACF relationship and post_object field types
+//
+//----------------------------------------------------------------------
+//
+// $this->add_id_to_relationship_fields() in class initialization
+// function does this
+//
+// [add_id_to_title is the function which does the work and is called at
+//  the rending phase of both relationship and post_object fields]
+//
+//======================================================================
+
+  function set_post( $key ) {
+    $tmp = get_page_by_path( $key, OBJECT );
+    if( $tmp ) {
+      $GLOBALS['post']                          = $tmp;      // Get the post.. and store it post object
+                                                             // This fixes the post object - but that isn't enough -
+                                                             // there are other bits which are got from the wp_query
+                                                             // which we need to set!
+      $GLOBALS['wp_query']->queried_object      = $tmp;      // Replace queried_object with post
+      $GLOBALS['wp_query']->queried_object_id   = $tmp->ID;  // and it's ID
+      $GLOBALS['wp_query']->is_singular         = 1;         // and finally make it a singular object...
+      return true;
+    }
+    return false; // We can chain this now with $theme_obj->set_post( {key} )->output_page( {template_name} );
+  }
+
+  function augment_relationship_labels( $title, $post ) {
+    return $title.' ('.$post->ID.')';
+  }
+
+  function add_augmented_relationship_labels() {
+    add_filter('acf/fields/relationship/result', [$this, 'augment_relationship_labels'], 10, 2);
+    add_filter('acf/fields/post_object/result',  [$this, 'augment_relationship_labels'], 10, 2);
+    return $this;
+  }
+
+  function acf_custom_column( $column, $post_id ) {
+    #$v = get_post_meta( $post_id, substr($column,4), true );
+    $v = get_field( substr($column,4), $post_id, true );
+
+    if( !is_array($v) ) {
+      $v = [$v];
+    }
+
+    $s = implode( '; ', array_map( function($s) {
+      if( is_object($s) ) {
+        return $s->post_title;
+      }
+      return preg_replace( '/^(\d{4})[-\/]?(\d\d)[-\/]?(\d\d).*$/', '$1-$2-$3', $s );
+    }, $v ));
+    if( $s == '' ) { $s = '-'; };
+    print $s;
+  }
+
+  function add_style( $style_src, $css = '') {
+    $md5 = md5( 'css:#:#:'.$style_src.':#:#:'.$css );
+    if( isset( $this->scripts[$md5] ) ) {
+      return '';
+    }
+    $out = '';
+    if( $style_src != '' ) {
+      $out = sprintf( '<link rel="stylesheet" href="%s" />', HTMLentities( $style_src ) );
+    }
+    if( $css != '' ) {
+      $out .= sprintf( '<style>
+/*<![CDATA[*/
+%s
+/*]]>*/
+</style>', $css );
+    }
+    $this->scripts[$md5] = true;
+    return $out;
+  }
+
+  function add_script( $script, $js = '' ) {
+    $md5 = md5( 'js:#:#:'.$script.':#:#:'.$js );
+    if( isset( $this->scripts[$md5] ) ) {
+      return '';
+    }
+    if( $script != '' ) {
+      $out = sprintf( '<script src="%s">', HTMLentities( $script ) );
+    } else {
+      $out = '<script>';
+    }
+    if( $js != '' ) {
+      $out .= sprintf( '
+//<![CDATA[
+%s
+//]]>
+', $js );
+    }
+    $out .= '</script>';
+    $this->scripts[$md5] = true;
+    return $out;
+  }
+  function clean_and_shorten( $str, $max  = 15, $decode = 1, $allowed_tags   = [ 'b', 'i', 'strong', 'em', 'sup', 'sub' ] ) {
+  // parameters:
+  //   * $str    - string to "shorten" and "remove tags"...
+  //   * $max    - (default 15)   - maximum number of words to include before adding an ellipsis
+  //   * $decode - (default true) - whether to decode/reencode entities
+  //                                [ set to false if the text does not contain entities ]
+  //   * $allowed_tags            - See above for defaults, list of tags which are preserved...
+  //                                [ other tags are dropped ]
+    if( !$max || $max < 0 ) {      // Set to unlimited characters {just a clean up!}
+      $max = PHP_INT_MAX;
+    }
+    $count  = 0;
+    $tags   = [];
+    $parts  = preg_split( '/(\s*<.*?>\s*)/', $str, 0, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY );
+    $output = []; // Contents of HTML to be rendered...
+    $title  = ''; // Value of title tag if there is an ellipsis
+    $tag_n  = 1;
+    //error_log( print_r([$parts, $count, $max],1) );
+    while( $part = array_shift( $parts ) ) {
+      /* Check to see if starts with a "less than" followed by optional "/" and
+       a sequence of alpha characters - if it does it is a tag! */
+      if( preg_match( '/(\s*)<(\/?)(\w+).*?>(\s*)/', $part, $matches ) ) {
+        list( , $pre_space, $close, $tagname, $post_space ) = $matches; // $close "" or "/"
+        $tagname = strtolower( $tagname );     // $tagname - name of tag...
+        if( $count > $max ) {                  // This is in the ... text so skip...
+          $title .= ' ';                       // We add a space incase the tag would
+          continue;                            // force white space...
+        }
+        if( ! in_array( $tagname, $allowed_tags ) ) { // Is this one we allow?
+          $output[] = "$pre_space$post_space";
+          continue;                                   // No - we skip this tag!
+        }
+        if( $close === '/' ) {                 // Is it a close tag
+          if( sizeof($tags) === 0 ) {
+            continue;                          // No tags - must be trying to close something wrong!
+          }
+          $output[] = $pre_space;
+          while( $open_tag = array_pop( $tags ) ) {
+            $output[] = "</$open_tag>";
+            if( $open_tag === $tagname ) {
+              $output[] = $post_space;
+              break;
+            }
+          }
+          $output[] = $post_space;
+        } else {                                 // It's an open tag
+          $tags[]   = $tagname;
+          $output[] = "$pre_space<$tagname>$post_space";
+        }
+        continue;
+      }
+
+      // Now we fall through to the else part - we have text.. we need
+      // to chunk this into words (and gaps) and push them either to the
+      // visible text array OR the ellipsis text.
+      if( $decode ) { // We make entities characters so they don't get split up and counted as words...
+        $part = html_entity_decode( $part );
+      }
+      $words = preg_split( '/((?:[\p{L}_\d]+-+)*[\p{L}_\d]+)/u', $part, 0, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY );
+      $txt   = '';
+      foreach( $words as $word ) {
+        if( preg_match( '/[\p{L}_\d]/u', $word ) ) {     // We have a new word!
+          $count++;
+        }
+        if( $count <= $max ) {                   // Do we have space left!
+          $txt   .= $word;                         // add it..
+        } else {
+          $title .= preg_replace( '/&nbsp;/',' ', $word );
+        }
+      }
+      if( $decode ) {
+        $txt      = htmlentities( $txt );
+      }
+      if( $txt ) {
+        $output[] = preg_replace( '/&nbsp;/', ' ', $txt );
+      }
+      $txt   = preg_replace( '/&nbsp;/',' ', $txt );
+    }
+    while( $open_tag = array_pop( $tags ) ) {
+      $output[] = "</$open_tag>";
+    }
+    if( $decode ) {
+      $title = htmlentities( $title );
+      $title = preg_replace( '/&nbsp;/',' ', $title );
+    }
+    $title = trim(preg_replace( '/\s+/', ' ', $title ));
+    $new = implode( '', $output );
+    $new = trim(preg_replace( [ '/(<\w+>)\s+/', '/\s+(<\/\w+>)/', '/\s+/' ], [ '$1', '$1 ', ' ' ], $new ));
+    if( $title ) {
+      $new .= sprintf( '&nbsp;<span title="... %s">...</span>', $title );
+    }
+    return $new;
+  }
+
+}
