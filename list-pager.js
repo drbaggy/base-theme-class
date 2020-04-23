@@ -159,7 +159,7 @@
 
   // 1) This just makes the whole news item click-able!
   // Now functionality on the actual list-load div...
-  $('.list-container').on('click', '.list-item', function () {
+  $('.list-container').on('click', '.list-item:not(".no-click")', function () {
     // What to do when the user clicks on a feed item.
     // This opens a new window if there is a target set!!
     var x = $(this).find('a.btn-more').prop('href'),
