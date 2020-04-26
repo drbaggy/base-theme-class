@@ -305,8 +305,10 @@ $(function(){
         f_info  = $list.data('filter-info'),
 // Tweak this to filter on dom elements not entries in hash using data() / text() on nodes...
         c       = 0,
+        t       = 0,
         cat_counts = {};
     $list.find('.list-item').each( function () {
+      t++;
       var el      = $(this),
           skip    = 0,
           skip_filter = {},
@@ -400,6 +402,13 @@ $(function(){
     });
     // Update the count of entries matched if .filter-count exists...
     $list.find('.filter-count').text(c);
+    $list.find('.filter-total').text(t);
+    if( c ) {
+      $list.find('.filter-count-block').removeClass('count-no-entries');
+    } else {
+      $list.find('.filter-count-block').addClass('count-no-entries');
+    }
+
     $list.find('.multi-block li').each( function(){
       var id = $(this).find('input').val();
       if( cat_counts.hasOwnProperty( id ) ) {
