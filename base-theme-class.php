@@ -633,7 +633,8 @@ class BaseThemeClass {
       if( array_key_exists( 'admin', $def ) ) {
         // Now we need to add the columns to the interface
         $fn = "acf-$field_prefix$code";
-        $cn = $def['admin'] == 1 ? $me['label'] : $def['admin'];
+        $field = $field_prefix.$code;
+        $cn = $def['admin'] | 1 ? $me['label'] : $def['admin'];
         add_action( 'manage_'.$type.'_posts_custom_column',   [ $this, 'acf_custom_column'        ], 10, 2  );
         add_filter( 'manage_'.$type.'_posts_columns',         function( $columns ) use ($fn, $cn ) {
           return array_merge( $columns, [ $fn => $cn ] );
@@ -641,6 +642,69 @@ class BaseThemeClass {
         add_filter( 'manage_edit-'.$type.'_sortable_columns', function( $columns ) use ($fn, $cn ) {
           return array_merge( $columns, [ $fn => $cn ] );
         });
+        if( array_key_exists( 'admin_filter', $def ) ) {
+          $flag = $def['type'] == 'checkbox' ? 1 : 0;
+          add_action( 'restrict_manage_posts', function() use($type,$cn,$field,$flag) {
+            global $wpdb, $table_prefix;
+            $post_type = preg_replace( '/[^-\w]/', '', (isset($_GET['post_type'])) ? $_GET['post_type'] : 'post' );
+          
+            if( $post_type != $type ) {
+              return;
+            }
+            $var_k = "admin_filter_$field";
+            $values = $wpdb->get_results(
+               'select meta_value as K,count(*) N
+                  from '.$table_prefix.'postmeta m, '.$table_prefix.'posts p
+                 where m.meta_key = "'.$field.'" and m.post_id = p.ID and p.post_type = "'.$post_type.'"
+                 group by K
+                 order by K' );
+            $t = [];
+            if( $flag == 1 ) {
+              foreach( $values as $r ) {
+                if( preg_match('/^a:/', $r->K ) ) {
+                  foreach( unserialize( $r->K ) as $_) {
+                    if(isset( $t[$_] ) ) {
+                      $t[$_] += $r->N;
+                    } else {
+                      $t[$_] = $r->N;
+                    }
+                  }
+                }
+              }
+            } else {
+              foreach( $values as $r ) {
+                $t[$r->K] = $r->N;
+              }          
+            }
+            print '<select name="'.$var_k.'"><option value="">All '.$cn.'</option>';
+            $curr = isset($_GET[$var_k])?$_GET[$var_k]:'';
+            foreach( $t as $k => $v ){
+              printf( '<option value="%s"%s>%s (%d)</option>', $k, $k==$curr?' selected="selected"':'', $k, $v );
+            }
+            print '</select>';
+          });
+          add_action( 'pre_get_posts', function( $query ) use ($type,$field,$flag) {
+            global $post_type, $pagenow, $wpdb;
+            if( $post_type == $type && $pagenow == 'edit.php' ) {
+              $var_k = 'admin_filter_'.$field;
+              if( isset( $_GET[ $var_k ] ) && $_GET[ $var_k ] ) {
+                if($flag) {
+                  $query->query_vars['meta_query'] = [[
+                    'key'       => $field,
+                    'value'     => '"'.$_GET[ $var_k ].'"',
+                    'compare'   => 'LIKE',
+                  ]];
+                } else {
+                  $query->query_vars['meta_query'] = [[
+                    'key'       => $field,
+                    'value'     => $_GET[ $var_k ],
+                    'compare'   => '=',
+                  ]];
+                }
+              }
+            }
+          }, 1 );
+        }
       }
       $munged[]=$me;
     }
