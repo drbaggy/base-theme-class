@@ -42,7 +42,7 @@
  * Plugin Name: Website Base Theme Class
  * Plugin URI:  https://jamessmith.me.uk/base-theme-class/
  * Description: Support functions to apply simple templates to acf pro data structures!
- * Version:     0.0.1
+ * Version:     0.0.2
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
@@ -166,7 +166,7 @@ class BaseThemeClass {
   }
 
   function fix_wysiwyg_format_value( $value, $post_id, $field ) {
-    return preg_match('/^\s*</',$value) ? $value : '<p>'.$value.'</p>';   
+    return preg_match('/^\s*</',$value) ? $value : '<p>'.$value.'</p>';
   }
 
   function fix_medium_editor_update_value( $value, $post_id, $field ) {
@@ -1456,7 +1456,7 @@ class BaseThemeClass {
       include_once( $this->template_directory.'/'.get_page_template_slug( $GLOBALS['post']->ID ) );
     }
     get_header();
-    print $out; 
+    print $out;
     get_footer();
   }
 
