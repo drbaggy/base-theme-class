@@ -643,7 +643,7 @@ class BaseThemeClass {
           return array_merge( $columns, [ $fn => $cn ] );
         });
         if( array_key_exists( 'admin_filter', $def ) ) {
-          $flag = $def['type'] == 'checkbox' ? 1 : 0;
+          $flag = $def['type'] == 'checkbox' ? 1 : (  (isset($def['multiple'] ) && $def['multiple']>0) ? 2 : 0 );
           add_action( 'restrict_manage_posts', function() use($type,$cn,$field,$flag) {
             global $wpdb, $table_prefix;
             $post_type = preg_replace( '/[^-\w]/', '', (isset($_GET['post_type'])) ? $_GET['post_type'] : 'post' );
@@ -659,27 +659,31 @@ class BaseThemeClass {
                  group by K
                  order by K' );
             $t = [];
-            if( $flag == 1 ) {
+            if( $flag > 0 ) {
               foreach( $values as $r ) {
                 if( preg_match('/^a:/', $r->K ) ) {
-                  foreach( unserialize( $r->K ) as $_) {
+                  foreach( unserialize( $r->K ) as $_ ) {
+                    $name = $_;
+                    if( $flag == 2 ) {
+                      $name = get_the_title( $_ );
+                    }
                     if(isset( $t[$_] ) ) {
-                      $t[$_] += $r->N;
+                      $t[$_][1] += $r->N;
                     } else {
-                      $t[$_] = $r->N;
+                      $t[$_] = [ $name, $r->N ];
                     }
                   }
                 }
               }
             } else {
               foreach( $values as $r ) {
-                $t[$r->K] = $r->N;
+                $t[$r->K] = [ $r->K, $r->N ];
               }          
             }
             print '<select name="'.$var_k.'"><option value="">All '.$cn.'</option>';
             $curr = isset($_GET[$var_k])?$_GET[$var_k]:'';
             foreach( $t as $k => $v ){
-              printf( '<option value="%s"%s>%s (%d)</option>', $k, $k==$curr?' selected="selected"':'', $k, $v );
+              printf( '<option value="%s"%s>%s (%d)</option>', $k, $k==$curr?' selected="selected"':'', $v[0], $v[1] );
             }
             print '</select>';
           });
@@ -689,17 +693,13 @@ class BaseThemeClass {
               $var_k = 'admin_filter_'.$field;
               if( isset( $_GET[ $var_k ] ) && $_GET[ $var_k ] ) {
                 if($flag) {
-                  $query->query_vars['meta_query'] = [[
-                    'key'       => $field,
-                    'value'     => '"'.$_GET[ $var_k ].'"',
-                    'compare'   => 'LIKE',
-                  ]];
+                  $query->query_vars['meta_key']     = $field;
+                  $query->query_vars['meta_value']   = '"'.$_GET[$var_k].'"';
+                  $query->query_vars['meta_compare'] = 'LIKE';
                 } else {
-                  $query->query_vars['meta_query'] = [[
-                    'key'       => $field,
-                    'value'     => $_GET[ $var_k ],
-                    'compare'   => '=',
-                  ]];
+                  $query->query_vars['meta_key']     = $field;
+                  $query->query_vars['meta_value']   = $_GET[$var_k];
+                  $query->query_vars['meta_compare'] = '=';
                 }
               }
             }
@@ -1508,10 +1508,13 @@ class BaseThemeClass {
   function output_page( $page_type ) {
     global $post;
     $extra = [
-      'ID'=>get_the_ID(),
-      'page_url'=>get_permalink(),
-      'page_title'=>the_title('','',false),
+      'ID'           => get_the_ID(),
+      'page_url'     => get_permalink(),
+      'page_title'   => the_title('','',false),
       'page_content' => $post->post_content
+      'post_url'     => get_permalink(),
+      'post_title'   => the_title('','',false),
+      'post_content' => $post->post_content
     ];
     $fields = get_fields();
     $out = $this->render( $page_type, is_array($fields) ? array_merge($fields,$extra) : $extra );
@@ -1918,6 +1921,12 @@ class BaseThemeClass {
     #$v = get_post_meta( $post_id, substr($column,4), true );
     $v = get_field( substr($column,4), $post_id, true );
 
+    if( is_array($v) && empty( $v ) ) {
+      $v= get_post_meta($post_id,substr($column,4));
+      if( is_array($v) && sizeof($v)>0) {
+        $v=$v[0];
+      }
+    }
     if( !is_array($v) ) {
       $v = [$v];
     }
