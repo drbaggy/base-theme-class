@@ -1511,7 +1511,7 @@ class BaseThemeClass {
       'ID'           => get_the_ID(),
       'page_url'     => get_permalink(),
       'page_title'   => the_title('','',false),
-      'page_content' => $post->post_content
+      'page_content' => $post->post_content,
       'post_url'     => get_permalink(),
       'post_title'   => the_title('','',false),
       'post_content' => $post->post_content
