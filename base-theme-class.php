@@ -765,7 +765,7 @@ class BaseThemeClass {
         // Now we need to add the columns to the interface
         $fn = "acf-$field_prefix$code";
         $field = $field_prefix.$code;
-        $cn = $def['admin'] | 1 ? $me['label'] : $def['admin'];
+        $cn = $def['admin'] ? $me['label'] : $def['admin'];
         add_action( 'manage_'.$type.'_posts_custom_column',   [ $this, 'acf_custom_column'        ], 10, 2  );
         add_filter( 'manage_'.$type.'_posts_columns',         function( $columns ) use ($fn, $cn ) {
           return array_merge( $columns, [ $fn => $cn ] );
