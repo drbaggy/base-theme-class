@@ -42,7 +42,7 @@
  * Plugin Name: Website Base Theme Class
  * Plugin URI:  https://jamessmith.me.uk/base-theme-class/
  * Description: Support functions to apply simple templates to acf pro data structures!
- * Version:     0.1.0
+ * Version:     0.1.1
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
@@ -237,11 +237,13 @@ class BaseThemeClass {
   protected $custom_types;
   protected $index = 0;
   protected $scripts;
+  protected $sequence;
   public function type_name( $code ) {
     return $this->custom_types[$code]['name'];
   }
 
   public function __construct( $defn ) {
+    $this->sequence = 0;
     $this->custom_types = [];
     $this->defn = $defn;
     $this->scripts = [];
@@ -580,16 +582,13 @@ class BaseThemeClass {
     return $string.'s';
   }
 
+  function random_id() {
+    return sprintf( '%s-%d-%04d', str_replace('.','-',microtime(true)), mt_rand(1e6,1e7), $this->sequence++ );
+  }
+
   function block_render( $block, $content = '', $is_preview = false, $post_id = 0 ) {
     $template_code = 'block-'.$this->cr( $block['title'] );
-
-    print $this->render(
-      $template_code,
-      array_merge(
-        [ 'random_id' => str_replace('.','-',microtime(true)).'-'.mt_rand(1e6,1e7) ],
-        get_fields()
-      )
-    );
+    print $this->render( $template_code, array_merge( [ 'random_id' => $this->random_id() ], get_fields() ) );
   }
 
   function define_block( $name, $fields, $extra ) {
@@ -765,7 +764,7 @@ class BaseThemeClass {
         // Now we need to add the columns to the interface
         $fn = "acf-$field_prefix$code";
         $field = $field_prefix.$code;
-        $cn = $def['admin'] ? $me['label'] : $def['admin'];
+        $cn = $def['admin'] == 1 ? $me['label'] : $def['admin'];
         add_action( 'manage_'.$type.'_posts_custom_column',   [ $this, 'acf_custom_column'        ], 10, 2  );
         add_filter( 'manage_'.$type.'_posts_columns',         function( $columns ) use ($fn, $cn ) {
           return array_merge( $columns, [ $fn => $cn ] );
@@ -1217,15 +1216,17 @@ class BaseThemeClass {
     } else {
       $class = 'publications_list';
     }
+    $random_id = $this->random_id();
     return sprintf(
 '
-<div class="ajax_publications %s" data-ids="%s %s"><span class="loading_publications">Loading publications...</span></div>
-',
+<div id="pub-%s" class="%s" data-ids="%s %s"><span class="loading_publications">Loading publications...</span></div>
+',    
+      $random_id,
       $class,
       HTMLentities( get_theme_mod( 'publication_options' ) ),
       HTMLentities( implode( ' ', $atts ) )
     ).
-    $this->add_script( '', 'show_pubs(".ajax_publications")' );
+    $this->add_script( '', 'show_pubs("#pub-'.$random_id.'")' );
   }
 
   // Short code: [email_link {email} {link text}?]
