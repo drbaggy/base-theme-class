@@ -1272,6 +1272,20 @@ class BaseThemeClass {
 //----------------------------------------------------------------------
 // Template funcations....
 //----------------------------------------------------------------------
+  function templates_join( $t_data, $extra, $sep, $sep_last = '' ) {
+    if( !is_array($t_data) ) {
+      return '';
+    }
+    $res = array_map(function($row) use ($extra) {
+             $tn =  $this->template_name( $extra, $row );
+             return $this->expand_template( $tn, $row );
+           }, $t_data );
+    if( $sep_last != '' && sizeof($res) > 1 ) {
+      $last = array_pop( $res );
+      return implode( $sep, $res ).$sep_last.$last;
+    }
+    return implode( $sep, $res );
+  }
 
   function initialize_templates() {
     $this->templates      = [];
@@ -1287,15 +1301,11 @@ class BaseThemeClass {
       'dump'      => function( $t_data, $extra ) {
         return '<pre style="height:400px;width:100%;border:1px solid red; background-color: #fee; color: #000; font-weight: bold;font-size: 10px; overflow: auto">'.HTMLentities(print_r($t_data,1)).'</pre>';
       },
-      'templates' => function( $t_data, $extra ) {
-        if( is_array( $t_data ) ) {
-          return implode( '', array_map(function($row) use ($extra) {
-            $tn =  $this->template_name( $extra, $row );
-            return $this->expand_template( $tn, $row );
-          }, $t_data ));
-        }
-        return '';
-      },
+      'templates'           => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, '' ); },
+      'templates_and'       => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, ', ', ' and ' ); },
+      'templates_comma'     => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, ', ' ); },
+      'templates_semicolon' => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, '; ' ); },
+      'templates_space'     => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, ' ' ); },
       'template'  => function( $t_data, $extra ) {
         $tn =  $this->template_name( $extra, $t_data );
         return $this->expand_template( $tn, $t_data );
@@ -1500,6 +1510,12 @@ class BaseThemeClass {
   }
 
   protected function expand_template( $template_code, $data ) {
+    if( substr($template_code,0,2)=='__' ) {
+      if( array_key_exists(substr($template_code,2), $this->scalar_methods ) ) {
+        return $this->scalar_methods[ substr($template_code,2) ]( $data );
+      }
+      return $this->show_error( "Scalar method as template does not exist '$template_code'" );
+    }
     if( ! array_key_exists( $template_code, $this->templates ) ) {
       return $this->show_error( "Template '$template_code' is missing" );
     }
@@ -1583,34 +1599,42 @@ class BaseThemeClass {
       case '.'; // just pass data through!
         return $data;
       default:  // navigate down data tree...
-        $t_data = $data;
-        foreach( explode( '.', $variable ) as $key ) {
-          // Missing data
-          if( is_object( $t_data) ) {
-            if( substr( $key, 0, 1 ) === '!' ) {
-              $t_data = get_field( substr($key,1), $t_data->ID );
-              continue;
+        $vars = explode('/',$variable);
+        $out = [];
+        foreach( $vars as $v ) {
+          $t_data = $data;
+          foreach( explode( '.', $v ) as $key ) {
+            // Missing data
+            if( is_object( $t_data) ) {
+              if( substr( $key, 0, 1 ) === '!' ) {
+                $t_data = get_field( substr($key,1), $t_data->ID );
+                continue;
+              }
+              if( $key == '@' ) {
+                $key = 'comment_count';
+              }
+              if( property_exists( $t_data, $key ) ) {
+                $t_data = $t_data->$key;
+                continue;
+              }
             }
-            if( $key == '@' ) {
-              $key = 'comment_count';
+            if( !is_array( $t_data ) ) {
+              return ''; // No value in tree with that key!
             }
-            if( property_exists( $t_data, $key ) ) {
-              $t_data = $t_data->$key;
-              continue;
+            // key doesn't exist in data structure or has null value...
+            if( !array_key_exists( $key, $t_data ) ||
+              !isset(            $t_data[$key] ) ||
+              is_null(           $t_data[$key] ) ) {
+              return '';
             }
+            $t_data = $t_data[$key];
           }
-          if( !is_array( $t_data ) ) {
-            return ''; // No value in tree with that key!
-          }
-          // key doesn't exist in data structure or has null value...
-          if( !array_key_exists( $key, $t_data ) ||
-            !isset(            $t_data[$key] ) ||
-            is_null(           $t_data[$key] ) ) {
-            return '';
-          }
-          $t_data = $t_data[$key];
+          $out[] = $t_data;
         }
-        return $t_data;
+        if( sizeof($out)==1 ) {
+          return $out[0];
+        }
+        return $out;
     }
   }
 
