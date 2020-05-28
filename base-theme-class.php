@@ -42,7 +42,7 @@
  * Plugin Name: Website Base Theme Class
  * Plugin URI:  https://jamessmith.me.uk/base-theme-class/
  * Description: Support functions to apply simple templates to acf pro data structures!
- * Version:     0.1.2
+ * Version:     0.1.3
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
@@ -2126,6 +2126,37 @@ class BaseThemeClass {
     return $out;
   }
 
+  function wp_jquery_manager_plugin_front_end_scripts() {
+    $wp_admin = is_admin();
+    $wp_customizer = is_customize_preview();
+
+    // jQuery
+    if ( $wp_admin || $wp_customizer ) {
+      // echo 'We are in the WP Admin or in the WP Customizer';
+      return;
+    } else {
+      // Deregister WP core jQuery, see https://github.com/Remzi1993/wp-jquery-manager/issues/2 and https://github.com/WordPress/WordPress/blob/91da29d9afaa664eb84e1261ebb916b18a362aa9/wp-includes/script-loader.php#L226
+      wp_deregister_script( 'jquery' ); // the jquery handle is just an alias to load jquery-core with jquery-migrate
+      // Deregister WP jQuery
+      wp_deregister_script( 'jquery-core' );
+      // Deregister WP jQuery Migrate
+      wp_deregister_script( 'jquery-migrate' );
+      // Register jQuery in the head
+      wp_register_script( 'jquery-core', plugin_dir_url(__FILE__).'jquery-3.5.1.min.js', array(), null, false );
+      /**
+       * Register jquery using jquery-core as a dependency, so other scripts could use the jquery handle
+       * see https://wordpress.stackexchange.com/questions/283828/wp-register-script-multiple-identifiers
+       * We first register the script and afther that we enqueue it, see why:
+       * https://wordpress.stackexchange.com/questions/82490/when-should-i-use-wp-register-script-with-wp-enqueue-script-vs-just-wp-enque
+       * https://stackoverflow.com/questions/39653993/what-is-diffrence-between-wp-enqueue-script-and-wp-register-script
+       */
+      wp_register_script( 'jquery', false, array( 'jquery-core' ), null, false );
+      wp_enqueue_script( 'jquery' );
+    }
+  }
+  function register_jquery_latest() {
+    add_action( 'wp_enqueue_scripts', [ $this, 'wp_jquery_manager_plugin_front_end_scripts'] );
+  }
   function add_script( $script, $js = '' ) {
     $md5 = md5( 'js:#:#:'.$script.':#:#:'.$js );
     if( isset( $this->scripts[$md5] ) ) {
