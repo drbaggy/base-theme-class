@@ -1509,6 +1509,15 @@ class BaseThemeClass {
     return $flag ? $this : '';
   }
 
+  protected function is_empty_string( $string ) {
+    if( !isset($string) ) {
+      return true;
+    }
+    if( $this->collapse_empty( $string ) == '' ) {
+      return true;
+    }
+    return false;
+  }
   protected function expand_template( $template_code, $data ) {
     if( substr($template_code,0,2)=='__' ) {
       if( array_key_exists(substr($template_code,2), $this->scalar_methods ) ) {
