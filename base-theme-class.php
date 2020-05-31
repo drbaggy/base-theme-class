@@ -42,7 +42,7 @@
  * Plugin Name: Website Base Theme Class
  * Plugin URI:  https://jamessmith.me.uk/base-theme-class/
  * Description: Support functions to apply simple templates to acf pro data structures!
- * Version:     0.1.3
+ * Version:     0.1.4
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
@@ -1083,6 +1083,11 @@ class BaseThemeClass {
       'section'     => 'base-theme-class',
       'default'     => '',
       'description' => 'Options for publications listings',
+    ], 'jquery_version' => [
+      'type'        => 'text',
+      'section'     => 'base-theme-class',
+      'default'     => '',
+      'description' => 'Version of jQuery to use [ currently either jquery-3.5.1.min.js or jquery-3.5.1.js (for debug)',
     ], 'coauthor_options' => [
       'type'        => 'radio',
       'choices'     => [ 'admin' => 'Administrator', 'owner' => 'Owner', 'author' => 'Author' ],
@@ -1681,7 +1686,7 @@ class BaseThemeClass {
       'post_title'   => the_title('','',false),
       'post_content' => $post->post_content
     ];
-    $fields = get_fields();
+    $fields = $this->remove_draft( get_fields() );
     $out = $this->render( $page_type, is_array($fields) ? array_merge($fields,$extra) : $extra );
     if( ! $out ) {
       $this->set_post( 'not-found' ); // should have a not found post set up!
@@ -1692,6 +1697,26 @@ class BaseThemeClass {
     get_footer();
   }
 
+  function remove_draft($a) {
+    if( ! is_array( $a ) ) {
+      return $a;
+    }
+    $new_a = [];
+    foreach( $a as $k => $b ) {
+      if( is_array($b) && isset( $b['object'] ) && is_a( $b['object'], 'WP_Post' ) ) {
+        if( $b['object']->post_status != 'publish' ) {
+          continue;
+        }
+      }
+      if( is_object( $b ) && is_a( $b, 'WP_Post' ) ) {
+        if( $b->post_status != 'publish' ) {
+          continue;
+        }
+      }
+      $new_a[$k] = $this->remove_draft( $b );
+    }
+    return $new_a;
+  }
 //----------------------------------------------------------------------
 // Support functions used by other methods!
 //----------------------------------------------------------------------
@@ -2142,7 +2167,11 @@ class BaseThemeClass {
       // Deregister WP jQuery Migrate
       wp_deregister_script( 'jquery-migrate' );
       // Register jQuery in the head
-      wp_register_script( 'jquery-core', plugin_dir_url(__FILE__).'jquery-3.5.1.min.js', array(), null, false );
+      $jquery_version = $flag = get_theme_mod('jquery_version');
+      if( !isset($jquery_version) || empty( $jquery_version ) ) {
+        $jquery_version = 'jquery-3.5.1.min.js';
+      }
+      wp_register_script( 'jquery-core', plugin_dir_url(__FILE__).$jquery_version, array(), null, false );
       /**
        * Register jquery using jquery-core as a dependency, so other scripts could use the jquery handle
        * see https://wordpress.stackexchange.com/questions/283828/wp-register-script-multiple-identifiers
