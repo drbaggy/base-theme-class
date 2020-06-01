@@ -1703,8 +1703,12 @@ class BaseThemeClass {
     }
     $new_a = [];
     foreach( $a as $k => $b ) {
-      if( is_array($b) && isset( $b['object'] ) && is_a( $b['object'], 'WP_Post' ) ) {
-        if( $b['object']->post_status != 'publish' ) {
+      if( is_array($b) && array_key_exists( 'object', $b ) ) {
+        if( isset( $b['object'] ) && is_a( $b['object'], 'WP_Post' ) ) {
+          if( $b['object']->post_status != 'publish' ) {
+            continue;
+          }
+        } else {
           continue;
         }
       }
