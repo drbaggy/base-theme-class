@@ -1684,7 +1684,9 @@ class BaseThemeClass {
       'page_content' => $post->post_content,
       'post_url'     => get_permalink(),
       'post_title'   => the_title('','',false),
-      'post_content' => $post->post_content
+      'post_content' => $post->post_content,
+      'created_at'   => $post->post_date_gmt,
+      'updated_at'   => $post->post_modified_gmt,
     ];
     $fields = $this->remove_draft( get_fields() );
     $out = $this->render( $page_type, is_array($fields) ? array_merge($fields,$extra) : $extra );
@@ -1748,7 +1750,9 @@ class BaseThemeClass {
       'post_excerpt' => $post->post_excerpt,
       'post_content' => $post->post_content,
       'post_url'     => get_permalink( $post ),
-      'post_name'    => $post->post_name
+      'post_name'    => $post->post_name,
+      'created_at'   => $post->post_date_gmt,
+      'updated_at'   => $post->post_modified_gmt,
     ] );
     return $return;
   }
@@ -1770,7 +1774,9 @@ class BaseThemeClass {
         'post_excerpt' => $post->post_excerpt,
         'post_content' => $post->post_content,
         'post_url'     => get_permalink( $post ),
-        'post_name'    => $post->post_name
+        'post_name'    => $post->post_name,
+        'created_at'   => $post->post_date_gmt,
+        'updated_at'   => $post->post_modified_gmt,
       ] );
     }
     return $return;
@@ -1789,8 +1795,10 @@ class BaseThemeClass {
           'post_excerpt' => $x->post_excerpt,
           'post_content' => $x->post_content,
           'post_url'     => get_permalink( $x ),
-          'post_name'    => $x->post_name ]
-        );
+          'post_name'    => $x->post_name,
+          'created_at'   => $x->post_date_gmt,
+          'updated_at'   => $x->post_modified_gmt,
+        ] );
       }, $entries );
       return $t;
     }
