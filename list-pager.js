@@ -63,6 +63,7 @@
 (function ($) {
   'use strict';
 $(function(){
+  var first_load = true;
   // Add handlers to links to arbitrarily set filters elsewhere on the page.
   //$('.change-filter').on('click', function () {
   $('.reset-filters').on('click',function(){
@@ -442,6 +443,10 @@ $(function(){
         flt.page = 0;
         $list.find('.pagination').html('');
         update_history( ky, flt );
+        if( !first_load ) {
+          $('html').animate({ scrollTop: $list.closest('.list-container').offset().top-20 },500);
+        }
+        first_load = false;
         return;
       }
       // If ptr points to past end of list then we write ptr back to correct value...
@@ -488,6 +493,10 @@ $(function(){
         $p.append($('<span>»</span>'));
         // Finally a little bit of tidying up!
         update_history( ky, flt );
+        if( !first_load ) {
+          $('html').animate({ scrollTop: $list.closest('.list-container').offset().top-20 },500);
+        }
+        first_load = false;
         return;
       } // END OF PAGINATION BLOCK!!!
 
@@ -506,6 +515,10 @@ $(function(){
         $list.find('.list-more').hide();
       }
       update_history( ky, flt );
+      if( !first_load ) {
+        $('html').animate({ scrollTop: $list.closest('.list-container').offset().top-20 },500);
+      }
+      first_load = false;
     }
 });
 }(jQuery));
