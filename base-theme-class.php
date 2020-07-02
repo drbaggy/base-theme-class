@@ -42,7 +42,7 @@
  * Plugin Name: Website Base Theme Class
  * Plugin URI:  https://jamessmith.me.uk/base-theme-class/
  * Description: Support functions to apply simple templates to acf pro data structures!
- * Version:     0.1.5
+ * Version:     0.2.0
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
@@ -50,6 +50,14 @@
  * License URI: https://www.gnu.org/licenses/lgpl.txt
  * Domain Path: /lang
  */
+
+function no_of_words() {
+  $w = get_theme_mod( 'card_words');
+  if( $w <= 0 ) {
+    $w = 20;
+  }
+  return $w;
+}
 
 function f( $a ) {
   $b = array_map( function($x) { return $x == 'None' || $x == 'Other' ? lcfirst($x) : $x; }, $a );
@@ -211,6 +219,12 @@ const DEFAULT_DEFN = [
     // section - is which part of menu to add this to [may need to add "add-section" code
     // default - default value
     // description - help text appears under
+    'card_words' => [
+      'type'        => 'text',
+      'section'     => 'base-theme-class',
+      'default'     => 0,
+      'description' => 'Number of words to appear in cards before being replaced with ellipsis',
+    ],
   ],
   'DEFAULT_TYPE'  => 'page',  // We need to know what type to default to as removing posts!
   'STYLES'        => [],      // Associate array of CSS files (key/filename)
