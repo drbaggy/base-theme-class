@@ -590,8 +590,11 @@ class BaseThemeClass {
   function pl( $string ) {
   // Pluralize and english string...
   // ends in "y" replace with "ies" ; o/w add "s"
-    if( preg_match( '/y$/', $string ) ) {
+    if( preg_match( '/[aeiou]y$/', $string ) ) {
       return preg_replace( '/y$/', 'ies', $string );
+    }
+    if( preg_match( '/is$/', $string ) ) {
+      return preg_replace( '/is$/', 'es', $string );
     }
     return $string.'s';
   }
@@ -1699,6 +1702,7 @@ class BaseThemeClass {
       'post_url'     => get_permalink(),
       'post_title'   => the_title('','',false),
       'post_content' => $post->post_content,
+      'post_status'  => $post->post_status,
       'created_at'   => $post->post_date_gmt,
       'updated_at'   => $post->post_modified_gmt,
     ];
