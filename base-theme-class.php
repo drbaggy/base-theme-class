@@ -386,7 +386,7 @@ class BaseThemeClass {
   function template_column( $column, $post_id ) {
     if( $column == '_wp_page_template' ) {
       $q = get_post_meta( $post_id, '_wp_page_template' );
-      if( isset($q) and is_array($q) ) {
+      if( !empty($q) and isset($q) and is_array($q) ) {
         print preg_replace('/-/',' ', $this->hr( preg_replace( '/\.php$/', '', $q[0] ) ) );
       }
     }
@@ -840,7 +840,7 @@ class BaseThemeClass {
           add_action( 'restrict_manage_posts', function() use($type,$cn,$field,$flag) {
             global $wpdb, $table_prefix;
             $post_type = preg_replace( '/[^-\w]/', '', (isset($_GET['post_type'])) ? $_GET['post_type'] : 'post' );
-          
+
             if( $post_type != $type ) {
               return;
             }
@@ -871,7 +871,7 @@ class BaseThemeClass {
             } else {
               foreach( $values as $r ) {
                 $t[$r->K] = [ $r->K, $r->N ];
-              }          
+              }
             }
             print '<select name="'.$var_k.'"><option value="">All '.$cn.'</option>';
             $curr = isset($_GET[$var_k])?$_GET[$var_k]:'';
@@ -1288,7 +1288,7 @@ class BaseThemeClass {
     return sprintf(
 '
 <div id="pub-%s" class="%s" data-ids="%s %s"><span class="loading_publications">Loading publications...</span></div>
-',    
+',
       $random_id,
       $class,
       HTMLentities( get_theme_mod( 'publication_options' ) ),
