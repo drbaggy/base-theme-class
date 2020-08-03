@@ -41,14 +41,39 @@
  * @wordpress-plugin
  * Plugin Name: Website Base Theme Class
  * Plugin URI:  https://jamessmith.me.uk/base-theme-class/
- * Description: Support functions to apply simple templates to acf pro data structures!
- * Version:     0.2.1
+ * Description: Support functions to:
+                 * apply simple templates to acf pro data structures!
+                 * to fix annoying defaults in wordpress
+                 * to handle sanger publications
+ * Version:     0.2.2
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
  * License:     GNU Lesser General Public v3
  * License URI: https://www.gnu.org/licenses/lgpl.txt
  * Domain Path: /lang
+
+# Change log
+# ==========
+
+ * Version 0.2.2 - add user's role to profile when they are logged in.
+ * Version 0.2.1 - added post status to object - so can preview pages which
+                   you would otherwise not be able to
+                 - move no_of_words() configuration reader to base theme class from theme
+                 - fudge to scroll top to fix margin bug
+ * Version 0.1.5 - add created time stamp to objects
+                 - fixed remove draft call
+                 - jquery configuration so can use uncompressed jquery for debug purposes
+                 - moved jquery log in to base theme class rather than theme
+ * Version 0.1.2 - Code to check for empty strings/HTML
+                 - Code to allow "separator to be added to templates so can simplify list display from templates without writing a post handler
+                 - Added better "null" checks in templates
+ * Version 0.1.1 - Fixed code which rendered the wrong publications
+                 - Country list added to base theme class - so could be used in multiple places
+                 - list-pager js tweaks to add counts
+                 - admin filter fixes
+ * Version 0.0.2 - Initial import
+
  */
 
 function no_of_words() {
@@ -292,7 +317,28 @@ class BaseThemeClass {
          ->add_template_column()
          ->fix_acf_fields()
          ->fix_reset_email()
+         ->add_roles_to_profile()
          ;
+  }
+  function add_roles_to_profile() {
+    add_action( 'show_user_profile', [ $this, 'show_user_roles' ], 10, 1);
+    return $this;
+  }
+  function show_user_roles() {
+    $user  = wp_get_current_user();
+    $roles = implode( ', ', array_values(  $user->roles ) );
+    printf( '<h3>Your Role</h3>
+<table class="form-table" role="presentation">
+<tbody>
+  <tr>
+		<th>Current user role</th>
+		<td>
+			<p class="description">%s</p>
+		  </p>
+		</td>
+	</tr>
+<tbody>
+</table>', ucfirst( $roles ) );
   }
 
   function fix_reset_email() {
