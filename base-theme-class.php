@@ -1380,6 +1380,9 @@ class BaseThemeClass {
       }
     ];
     $this->scalar_methods = [
+      'html_with_br'  => function( $s ) { return implode( "<br />\n", array_map( 'HTMLentities', preg_split( '/\r?\n/', $s ) ) ); },
+      'post_url_link' => function( $s ) { return HTMLentities(get_permalink( $s )); },
+      'post_url_raw'  => function( $s ) { return get_permalink( $s ); },
       'ucfirst'   => function( $s ) { return ucfirst($s); },
       'hr'        => function( $s ) { return $this->hr($s); },
       'cr'        => function( $s ) { return $this->cr($s); },
@@ -1396,8 +1399,6 @@ class BaseThemeClass {
       'spliturl'  => function( $s ) { return preg_replace( '/([.\/])(?![.\/])/','\1<wbr/>', HTMLentities($s) ); },
       'rand_html' => function( $s ) { return $this->random_html_entities( $s ); },
       'html'      => 'HTMLentities',
-      'post_url_link' => function( $s ) { return HTMLentities(get_permalink( $s )); },
-      'post_url_raw'  => function( $s ) { return get_permalink( $s ); },
       'email'     => function( $s ) { // embeds an email link into the page!
         $s = strpos( $s, '@' ) !== false ? $s : $s.'@'.get_theme_mod('email_domain');
         return sprintf( '<a href="mailto:%s">%s</a>', $this->random_url_encode( $s ),
