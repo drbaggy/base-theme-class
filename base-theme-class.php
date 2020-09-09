@@ -1274,8 +1274,8 @@ class BaseThemeClass {
   }
 
   function publications_shortcode( $atts, $content = null ) {
-    if( ! is_array( $atts) ) {
-      $atts = [$atts];
+    if( ! ( isset( $atts ) && is_array( $atts ) && sizeof( $atts ) ) ) {
+      return '';
     }
     $class='pub-simple';
     if( isset( $atts['class'] ) ) {
@@ -2379,3 +2379,4 @@ class BaseThemeClass {
   }
 
 }
+
