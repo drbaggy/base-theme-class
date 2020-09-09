@@ -1277,6 +1277,10 @@ class BaseThemeClass {
     if( ! ( isset( $atts ) && is_array( $atts ) && sizeof( $atts ) ) ) {
       return '';
     }
+    $atts = implode( ' ', $atts );
+    if( $atts == 'undefined' ) {
+      return '';
+    }
     $class='pub-simple';
     if( isset( $atts['class'] ) ) {
       $class=$atts['class'];
@@ -1292,7 +1296,7 @@ class BaseThemeClass {
       $random_id,
       $class,
       HTMLentities( get_theme_mod( 'publication_options' ) ),
-      HTMLentities( implode( ' ', $atts ) )
+      HTMLentities( $atts )
     ).
     $this->add_script( '', 'show_pubs("#pub-'.$random_id.'")' );
   }
