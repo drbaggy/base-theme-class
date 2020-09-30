@@ -277,11 +277,13 @@ class BaseThemeClass {
   protected $index = 0;
   protected $scripts;
   protected $sequence;
+  protected $is_simply_static;
   public function type_name( $code ) {
     return $this->custom_types[$code]['name'];
   }
 
   public function __construct( $defn ) {
+    $this->is_simply_static = preg_match( '/WordPress\/\d+\.\d+\.\d+/', $_SERVER['HTTP_USER_AGENT'] );
     $this->sequence = 0;
     $this->custom_types = [];
     $this->defn = $defn;
@@ -1371,6 +1373,9 @@ class BaseThemeClass {
         return HTMLentities( json_encode( $t_data ) );
       },
       'dump'      => function( $t_data, $extra ) {
+        if( $this->is_simply_static ) {
+          return '';
+        }
         return '<pre style="height:400px;width:100%;border:1px solid red; background-color: #fee; color: #000; font-weight: bold;font-size: 10px; overflow: auto">'.HTMLentities(print_r($t_data,1)).'</pre>';
       },
       'templates'           => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, '' ); },
