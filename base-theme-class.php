@@ -45,7 +45,7 @@
                  * apply simple templates to acf pro data structures!
                  * to fix annoying defaults in wordpress
                  * to handle sanger publications
- * Version:     0.2.2
+ * Version:     0.2.3
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
@@ -56,6 +56,7 @@
 # Change log
 # ==========
 
+ * Version 0.2.3 - code to hide dump if requested by simply static
  * Version 0.2.2 - add user's role to profile when they are logged in.
  * Version 0.2.1 - added post status to object - so can preview pages which
                    you would otherwise not be able to
