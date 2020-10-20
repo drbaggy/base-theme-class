@@ -2389,4 +2389,3 @@ class BaseThemeClass {
   }
 
 }
-
