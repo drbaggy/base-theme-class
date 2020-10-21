@@ -284,7 +284,8 @@ class BaseThemeClass {
   }
 
   public function __construct( $defn ) {
-    $this->is_simply_static = preg_match( '/WordPress\/\d+\.\d+\.\d+/', $_SERVER['HTTP_USER_AGENT'] );
+    $this->is_simply_static = preg_match( '/WordPress\/\d+\.\d+\.\d+/', $_SERVER['HTTP_USER_AGENT'] ) ||
+                              preg_match( '/FETCHER/',                  $_SERVER['HTTP_USER_AGENT'] );
     $this->sequence = 0;
     $this->custom_types = [];
     $this->defn = $defn;
@@ -590,6 +591,7 @@ class BaseThemeClass {
     remove_action( 'wp_head',                'feed_links', 2 );
     remove_action( 'wp_head',                'feed_links_extra', 3 );
     remove_action( 'wp_head',                'wp_generator' );
+    remove_action( 'wp_head',                'adjacent_posts_rel_link_wp_head');
     return $this;
   }
 
@@ -648,13 +650,16 @@ class BaseThemeClass {
     return $string.'s';
   }
 
+  function sequence_id() {
+    return sprintf( '%04d', $this->sequence++ );
+  }
   function random_id() {
     return sprintf( '%s-%d-%04d', str_replace('.','-',microtime(true)), mt_rand(1e6,1e7), $this->sequence++ );
   }
 
   function block_render( $block, $content = '', $is_preview = false, $post_id = 0 ) {
     $template_code = 'block-'.$this->cr( $block['title'] );
-    print $this->render( $template_code, array_merge( [ 'random_id' => $this->random_id() ], get_fields() ) );
+    print $this->render( $template_code, array_merge( [ 'random_id' => $this->sequence_id() ], get_fields() ) );
   }
 
   function define_block( $name, $fields, $extra ) {
@@ -1291,7 +1296,7 @@ class BaseThemeClass {
     } else {
       $class = 'publications_list';
     }
-    $random_id = $this->random_id();
+    $random_id = $this->sequence_id();
     return sprintf(
 '
 <div id="pub-%s" class="%s" data-ids="%s %s"><span class="loading_publications">Loading publications...</span></div>
@@ -1347,6 +1352,9 @@ class BaseThemeClass {
 //----------------------------------------------------------------------
 // Template funcations....
 //----------------------------------------------------------------------
+  public function pretty_dump( $d ) {
+    return '<pre style="height:400px;width:100%;border:1px solid red; background-color: #fee; color: #000; font-weight: bold;font-size: 10px; overflow: auto">'.HTMLentities(print_r($d,1)).'</pre>';
+  }
   function templates_join( $t_data, $extra, $sep, $sep_last = '' ) {
     if( !is_array($t_data) ) {
       return '';
@@ -1377,7 +1385,7 @@ class BaseThemeClass {
         if( $this->is_simply_static ) {
           return '';
         }
-        return '<pre style="height:400px;width:100%;border:1px solid red; background-color: #fee; color: #000; font-weight: bold;font-size: 10px; overflow: auto">'.HTMLentities(print_r($t_data,1)).'</pre>';
+        return $this->pretty_dump( $t_data );
       },
       'templates'           => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, '' ); },
       'templates_and'       => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, ', ', ' and ' ); },
@@ -1623,7 +1631,7 @@ class BaseThemeClass {
       $function = $this->preprocessors[$template_code];
       $data = $function( $data, $this );
     }
-    $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-@~.!\w+]+)(?::([^\]]+))?\]\]/',
+    $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-=@~.!\w+]+)(?::([^\]]+))?\]\]/',
        implode('|',array_keys( $this->array_methods )),
        implode('|',array_keys( $this->scalar_methods )) );
 
@@ -1684,6 +1692,8 @@ class BaseThemeClass {
         return $extra;
       case '~': // customizer parameter
         return get_theme_mod( $extra );
+      case '=': // wp option....
+        return get_option( $extra );
       case '.'; // just pass data through!
         return $data;
       default:  // navigate down data tree...
@@ -1692,16 +1702,17 @@ class BaseThemeClass {
         foreach( $vars as $v ) {
           $t_data = $data;
           foreach( explode( '.', $v ) as $key ) {
-            // Missing data
             if( is_object( $t_data) ) {
-              if( substr( $key, 0, 1 ) === '!' ) {
+              // If object - 1 see if we need to grab extra data from object...
+              if( substr( $key, 0, 1 ) === '!' ) { // Need to look this up in the database as not in the
+                                                   // object hash at the moment.
                 $t_data = get_field( substr($key,1), $t_data->ID );
                 continue;
               }
               if( $key == '@' ) {
                 $key = 'comment_count';
               }
-              if( property_exists( $t_data, $key ) ) {
+              if( property_exists( $t_data, $key ) ) { // Check we can access object value...
                 $t_data = $t_data->$key;
                 continue;
               }
@@ -1766,6 +1777,7 @@ class BaseThemeClass {
     $fields = $this->remove_draft( get_fields() );
     $out = $this->render( $page_type, is_array($fields) ? array_merge($fields,$extra) : $extra );
     if( ! $out ) {
+      header( 'HTTP/1.0 404 Not found' );
       $this->set_post( 'not-found' ); // should have a not found post set up!
       include_once( $this->template_directory.'/'.get_page_template_slug( $GLOBALS['post']->ID ) );
     }
@@ -1885,26 +1897,37 @@ class BaseThemeClass {
 // either replace with HTML entity code (hex or dec) or URL encoding...
 //----------------------------------------------------------------------
 
-  function random_html_entities( $string ) {
+  function random_html_entities( $string ) { // Use md5 of string to define a "random" sequence - this will then be deterministic.. meaning reloads won't throw diffs
     $alwaysEncode = array('.', ':', '@');
     $res='';
+    $random_array = str_split( md5($string) );
     for($i=0;$i<strlen($string);$i++) {
       $x = htmlentities( $string[$i] );
-      if( $x === $string[$i] && ( in_array( $x, $alwaysEncode ) || !mt_rand(0,3) ) ) {
-        $x = '&#'.sprintf( ['%d','x%x','x%X'][mt_rand(0,2)], ord($x) ).';';
+      $r = hexdec( array_shift( $random_array ) );
+      $random_array[] = $r;
+      $r1 = $r & 3;
+      $r2 = $r >> 2;
+      $random_array[] = $r2;
+      if( $x === $string[$i] && ( in_array( $x, $alwaysEncode ) || $r1<2 ) ) {
+        $x = '&#'.sprintf( ['%d','x%x','x%X','%d'][$r2], ord($x) ).';';
       }
       $res.=$x;
     }
     return $res;
   }
 
-  function random_url_encode( $string ) {
+  function random_url_encode( $string ) { // Use md5 of string to define a "random" sequence - this will then be deterministic.. meaning reloads won't throw diffs
     $alwaysEncode = array('.', ':', '@');
     $res='';
+    $random_array = str_split( md5($string) );
     for($i=0;$i<strlen($string);$i++){
       $x = urlencode( $string[$i] );
-      if( $x === $string[$i] && ( in_array( $x, $alwaysEncode ) || !mt_rand(0,3) ) ) {
-        $x = '%'.sprintf( ['%02X','%02x'][mt_rand(0,1)], ord($x) );
+      $r = hexdec( array_shift( $random_array ) );
+      $random_array[] = $r;
+      $r2 = $r & 3;
+      $r1 = $r >> 2;
+      if( $x === $string[$i] && ( in_array( $x, $alwaysEncode ) || $r1<2 ) ) {
+        $x = '%'.sprintf( ['%02X','%02x','%02X','%02x'][$r2], ord($x) );
       }
       $res.=$x;
     }
