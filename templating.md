@@ -66,62 +66,62 @@ Template inclusion is of the form:
  
 ### Scalar template options
 
- * html_with_br  -> HTML entities of content (but convert "\r?\n" with <br />)
- * post_url_link -> HTML entities version of permalink
- * post_url_raw  -> raw version of permalink
- * ucfirst -> First character upper cased
- * hr -> Human readable version of variable name (_ separated)
- * cr -> Computer readable version of string (' ' separated)
- * uc -> All upper case
- * lc -> All lower case
- * raw -> Raw string
- * date -> Date format - using standard date format for site
- * enc -> URL encoded version of string
- * rand_enc -> String with some values URL encoded
- * integer -> Integer
- * boolean -> displays true / false based on value
- * shortcode -> Expands out short code in convert
- * strip -> Remove height/width etc from markup
- * spliturl -> returns URL but with the option of it wrapping on "/"s
- * html -> HTML entities of content {default action}
- * email -> encodes some characters in email as urlencoded (in link) and html entities in body; uses 'email_domain' property for domain if none specified
- * wp -> see below
+ * `html_with_br`  -> HTML entities of content (but convert "\r?\n" with <br />)
+ * `post_url_link` -> HTML entities version of permalink
+ * `post_url_raw`  -> raw version of permalink
+ * `ucfirst` -> First character upper cased
+ * `hr` -> Human readable version of variable name (_ separated)
+ * `cr` -> Computer readable version of string (' ' separated)
+ * `uc` -> All upper case
+ * `lc` -> All lower case
+ * `raw` -> Raw string
+ * `date` -> Date format - using standard date format for site
+ * `enc` -> URL encoded version of string
+ * `rand_enc` -> String with some values URL encoded
+ * `integer` -> Integer
+ * `boolean` -> displays true / false based on value
+ * `shortcode` -> Expands out short code in convert
+ * `strip` -> Remove height/width etc from markup
+ * `spliturl` -> returns URL but with the option of it wrapping on "/"s
+ * `html` -> HTML entities of content {default action}
+ * `email` -> encodes some characters in email as urlencoded (in link) and html entities in body; uses 'email_domain' property for domain if none specified
+ * `wp` -> see below
 
 
 ### wp template options
 
 These are parts of wordpress {passed in "extra"}
 
- * part-{part} - returns template_part given by {part}
- * index - incrementing numeric value
- * prev_index - previous value of increment above
- * charset - the charset for the website
- * lang - language attributes
- * path - path to theme folder
- * body_class - class of body
- * menu-{menu} - markup from menu give by {menu}
- * head - the output of wp_head
- * foot - the output of wp_footer
+ * `part-{part}` - returns template_part given by {part}
+ * `index` - incrementing numeric value
+ * `prev_index` - previous value of increment above
+ * `charset` - the charset for the website
+ * `lang` - language attributes
+ * `path` - path to theme folder
+ * `body_class` - class of body
+ * `menu-{menu}` - markup from menu give by {menu}
+ * `head` - the output of wp_head
+ * `foot` - the output of wp_footer
 
 ### Array template options
 
- * size - size of array
- * json - json structure of array
- * dump - styled dump of contents of array
- * templates - expand the template name provided with content
- * templates_and - expand the template name provided with content, join with ", " or "and" resepectively
- * templates_comma - expand the template name provided with content, join with ", "
- * templates_semicolon - expand the template name provided with content, join with "; "
- * templates_space - expand the template name provided with content, join with " "
- * template - expand another template passing array in
+ * `size` - size of array
+ * `json` - json structure of array
+ * `dump` - styled dump of contents of array
+ * `templates` - expand the template name provided with content
+ * `templates_and` - expand the template name provided with content, join with ", " or "and" resepectively
+ * `templates_comma` - expand the template name provided with content, join with ", "
+ * `templates_semicolon` - expand the template name provided with content, join with "; "
+ * `templates_space` - expand the template name provided with content, join with " "
+ * `template` - expand another template passing array in
  
 ### Expanding variable names
 
- * "." - current object
- * "-" - raw string
- * "~" - theme mod parameter
- * "=" - get option
- * "string1.string2.string3"
+ * `.` - current object
+ * `-` - raw string
+ * `~` - theme mod parameter
+ * `=` - get option
+ * `string1.string2.string3`
     * Expands the element [string1][string2][string3], where the indexing may be object accessor or array lookup
     * If first character of string is "!" then it uses get_field to get other (ACF) properties of object
     * If the key is "@" it returns the comment count
