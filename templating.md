@@ -54,13 +54,17 @@ It takes one/two/three parameters - the first is the processed HTML, the second 
 
 Return value:
  * modified HTML.
+ 
+## Template strings
+ 
 Template inclusion is of the form:
  
  * [variable_name]
  * [template_type:variable_name]
  * [template_type:variable_name:extra]
  * [variable_name:extra]
-## Scalar template options
+ 
+### Scalar template options
 
  * html_with_br  -> HTML entities of content (but convert "\r?\n" with <br />)
  * post_url_link -> HTML entities version of permalink
@@ -84,7 +88,7 @@ Template inclusion is of the form:
  * wp -> see below
 
 
-## wp template options
+### wp template options
 
 These are parts of wordpress {passed in "extra"}
 
@@ -99,7 +103,7 @@ These are parts of wordpress {passed in "extra"}
  * head - the output of wp_head
  * foot - the output of wp_footer
 
-## Array template options
+### Array template options
 
  * size - size of array
  * json - json structure of array
@@ -111,7 +115,7 @@ These are parts of wordpress {passed in "extra"}
  * templates_space - expand the template name provided with content, join with " "
  * template - expand another template passing array in
  
-## Expanding variable names
+### Expanding variable names
 
  * "." - current object
  * "-" - raw string
