@@ -125,3 +125,16 @@ These are parts of wordpress {passed in "extra"}
     * Expands the element [string1][string2][string3], where the indexing may be object accessor or array lookup
     * If first character of string is "!" then it uses get_field to get other (ACF) properties of object
     * If the key is "@" it returns the comment count
+    
+## Extending templating
+
+It is possible to add your own templating "codes" by calling add_template to the Base Theme Class object.
+
+```
+  $self->add_template( 'code' , [
+    'template' => '',
+    'switch'   => function(){},
+    'pre'      => function(){},
+    'post'     => function(){},
+  ] );
+```
