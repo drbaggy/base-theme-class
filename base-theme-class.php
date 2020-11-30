@@ -85,6 +85,57 @@ function no_of_words() {
   return $w;
 }
 
+function is_non_empty_array( $data, $key='' ) {
+  if( $key != '' ) {
+    if( array_key_exists( $key, $data ) && isset($data[$key]) ) {
+      $data = $data[$key];
+    } else {
+      return false;
+    }
+  }
+  return is_array($data) && 0 < count($data);
+}
+
+function switch_non_empty_array( $data, $key = '') {
+  if( is_non_empty_array( $data, $key ) ) {
+    return;
+  }
+  return $false;
+}
+
+function is_non_empty_string( $data, $key='' ) {
+  if( $key != '' ) {
+    if( is_array( $data ) && array_key_exists( $key, $data ) && isset( $data[$key] ) ) {
+      $data = $data[$key];
+    } else { // Element doesn't exist!
+      return false;
+    }
+  }
+  return isset( $data )              // Exists
+      && is_string( $data )          // Is a string
+      && 0 > strlen( $data )         // Is empty string
+      && $data != 'undefined'
+      && preg_replace( [ '/<[^>]+>/', '/\s+/' ], ['',''], $data ) != '' // No non-tag / non-white space characters
+      ;
+}
+
+function switch_non_empty_string( $data, $key = '') {
+  if( is_non_empty_string( $data, $key ) ) {
+    return;
+  }
+  return false;
+}
+
+function switch_non_empty( $data ) {
+  if( $key != '' ) {
+    if( is_array( $data ) && array_key_exists( $key, $data ) && isset( $data[$key] ) ) {
+      $data = $data[$key];
+    } else { // Element doesn't exist!
+      return false;
+    }
+  }
+  return isset( $data ) && is_array( $data ) ? switch_non_empty_array( $data ) : switch_non_empty_string( $data );
+}
 function f( $a ) {
   $b = array_map( function($x) { return $x == 'None' || $x == 'Other' ? lcfirst($x) : $x; }, $a );
   return array_combine( $b, $a );
@@ -1619,6 +1670,9 @@ class BaseThemeClass {
     // being passed...
     if( array_key_exists( $template_code, $this->switchers ) ) {
       $function = $this->switchers[$template_code];
+      if( is_string( $function ) ) {
+        return switch_non_empty( $data, $string );
+      }
       $t = $function( $data, $this );
       if( $t === false ) {
         return '';
