@@ -28,11 +28,26 @@ This function allows you to use an alternate template OR to just skip the conten
 
 The function takes one/two parameters - the first is a data structure, the second (optional) is the Base Theme Class object.
 
+
 Return values:
+
  * `false` - Skip the template
  * `{template_name}` - Use template {template_name}
  * `undef` - Use the template
-  
+
+Additonally the parameter can be a string - in this case the element of the object or the object itself is checked for "emptiness"
+and if empty returns false (and doesn't display the template).
+
+There are the following functions which can be used inside a switch function:
+
+ * is_non_empty_array( $data, $key='' ) - return true if is array with content
+ * is_non_empty_string( $data, $key='' ) - return true if is string and has non-HTML tag content in it
+ * switch_non_empty_array( $data, $key='' ) - return nothing if is non empty array; o/w returns false
+ * switch_non_empty_string( $data, $key='' ) - return nothing if is non empty string; o/w returns false
+ * switch_non_empty( $data, $key='' ) - sniffs object type - if array and non-empty or string and non-empty returns nothing; o/w returns false
+
+If $key is defined then if data is an array it uses $data[$key]; if data is an object it uses $data->$key
+
 ## Pre
 
 This function allows you to modify the data structure which gets past to the template
