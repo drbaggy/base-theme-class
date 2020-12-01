@@ -45,7 +45,7 @@
                  * apply simple templates to acf pro data structures!
                  * to fix annoying defaults in wordpress
                  * to handle sanger publications
- * Version:     0.3.0
+ * Version:     0.3.1
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
