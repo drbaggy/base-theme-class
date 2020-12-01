@@ -87,8 +87,10 @@ function no_of_words() {
 
 function is_non_empty_array( $data, $key='' ) {
   if( $key != '' ) {
-    if( array_key_exists( $key, $data ) && isset($data[$key]) ) {
+    if( is_array( $data ) && array_key_exists( $key, $data ) && isset( $data[$key] ) ) {
       $data = $data[$key];
+    } elseif( is_object( $data ) && property_exists( $data, $key ) && isset( $data->$key ) ) {
+      $data = $data->$key;
     } else {
       return false;
     }
@@ -100,13 +102,15 @@ function switch_non_empty_array( $data, $key = '') {
   if( is_non_empty_array( $data, $key ) ) {
     return;
   }
-  return $false;
+  return false;
 }
 
 function is_non_empty_string( $data, $key='' ) {
   if( $key != '' ) {
     if( is_array( $data ) && array_key_exists( $key, $data ) && isset( $data[$key] ) ) {
       $data = $data[$key];
+    } elseif( is_object( $data ) && property_exists( $data, $key ) && isset( $data->$key ) ) {
+      $data = $data->$key;
     } else { // Element doesn't exist!
       return false;
     }
@@ -126,10 +130,12 @@ function switch_non_empty_string( $data, $key = '') {
   return false;
 }
 
-function switch_non_empty( $data ) {
+function switch_non_empty( $data, $key = '' ) {
   if( $key != '' ) {
     if( is_array( $data ) && array_key_exists( $key, $data ) && isset( $data[$key] ) ) {
       $data = $data[$key];
+    } elseif( is_object( $data ) && property_exists( $data, $key ) && isset( $data->$key ) ) {
+      $data = $data->$key;
     } else { // Element doesn't exist!
       return false;
     }
@@ -1671,7 +1677,7 @@ class BaseThemeClass {
     if( array_key_exists( $template_code, $this->switchers ) ) {
       $function = $this->switchers[$template_code];
       if( is_string( $function ) ) {
-        return switch_non_empty( $data, $string );
+        return switch_non_empty( $data, $function );
       }
       $t = $function( $data, $this );
       if( $t === false ) {
