@@ -1580,11 +1580,21 @@ class BaseThemeClass {
           }
           closedir($dh);
         }
-      } else {
+      } elseif( '.php' == substr($full_path,-4) ) {
         $templates = include $full_path;
-        foreach( $templates as $key => $template ) {
-          $this->add_template( $key, $template );
+        if( isset( $templates ) && is_array( $templates ) ) {
+          foreach( $templates as $key => $template ) {
+            $this->add_template( $key, $template );
+          }
+        } else {
+          error_log( " " );
+          error_log( "BASE THEME CLASS: File $dirname does not return an array of templates" );
+          error_log( " " );
         }
+      } else {
+        error_log( " " );
+        error_log( "BASE THEME CLASS: Skipped processing of template file: $dirname" );
+        error_log( " " );
       }
     }
     return $this;
