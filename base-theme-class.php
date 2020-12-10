@@ -1686,10 +1686,7 @@ class BaseThemeClass {
     // being passed...
     if( array_key_exists( $template_code, $this->switchers ) ) {
       $function = $this->switchers[$template_code];
-      if( is_string( $function ) ) {
-        return switch_non_empty( $data, $function );
-      }
-      $t = $function( $data, $this );
+      $t = is_string( $function ) ? switch_non_empty( $data, $function ) : $function( $data, $this );
       if( $t === false ) {
         return '';
       }
