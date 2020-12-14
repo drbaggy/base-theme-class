@@ -117,7 +117,7 @@ function is_non_empty_string( $data, $key='' ) {
   }
   return isset( $data )              // Exists
       && is_string( $data )          // Is a string
-      && 0 > strlen( $data )         // Is empty string
+      && 0 < strlen( $data )         // Is empty string
       && $data != 'undefined'
       && preg_replace( [ '/<[^>]+>/', '/\s+/' ], ['',''], $data ) != '' // No non-tag / non-white space characters
       ;
