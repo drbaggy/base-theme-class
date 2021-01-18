@@ -827,6 +827,7 @@ class BaseThemeClass {
               $extra['title_template']
             )
           ));
+          $post_data[ 'post_name' ] = sanitize_title( $post_data[ 'post_title'] );
         }
         return $post_data;
       } );
@@ -1475,6 +1476,9 @@ class BaseThemeClass {
       'rand_html' => function( $s ) { return $this->random_html_entities( $s ); },
       'html'      => 'HTMLentities',
       'email'     => function( $s ) { // embeds an email link into the page!
+        if( $s == '' ) {
+          return '';
+        }
         $s = strpos( $s, '@' ) !== false ? $s : $s.'@'.get_theme_mod('email_domain');
         return sprintf( '<a href="mailto:%s">%s</a>', $this->random_url_encode( $s ),
           $this->random_html_entities( $s ) );
@@ -1917,6 +1921,7 @@ class BaseThemeClass {
 
     $return = [];
     foreach( $entries as $post ) {
+
       $meta = get_fields( $post->ID );
       if( !is_array( $meta ) ) {
         $meta = [];
