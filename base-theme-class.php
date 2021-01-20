@@ -1482,6 +1482,9 @@ class BaseThemeClass {
       'rand_html' => function( $s, $e='' ) { return $this->random_html_entities( $s ); },
       'html'      => 'HTMLentities',
       'email'     => function( $s, $e='' ) { // embeds an email link into the page!
+        if($s=='') {
+          return '';
+        }
         $s = strpos( $s, '@' ) !== false ? $s : $s.'@'.get_theme_mod('email_domain');
         return sprintf( '<a href="mailto:%s">%s</a>', $this->random_url_encode( $s ),
           $this->random_html_entities( $s ) );
