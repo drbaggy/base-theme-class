@@ -1450,40 +1450,43 @@ class BaseThemeClass {
       'templates_comma'     => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, ', ' ); },
       'templates_semicolon' => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, '; ' ); },
       'templates_space'     => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, ' ' ); },
+      'image_url' => function( $s, $e='' ) {
+        if( $s && is_array($s) && isset( $s['url'] ) && $s['url'] != '' ) {
+          return isset( $s['sizes'][$e] ) ? $s['sizes'][$e] : $s['url'];
+        }
+        return '';
+      },
       'template'  => function( $t_data, $extra ) {
         $tn =  $this->template_name( $extra, $t_data );
         return $this->expand_template( $tn, $t_data );
       }
     ];
     $this->scalar_methods = [
-      'html_with_br'  => function( $s ) { return implode( "<br />\n", array_map( 'HTMLentities', preg_split( '/\r?\n/', $s ) ) ); },
-      'post_url_link' => function( $s ) { return HTMLentities(get_permalink( $s )); },
-      'post_url_raw'  => function( $s ) { return get_permalink( $s ); },
-      'ucfirst'   => function( $s ) { return ucfirst($s); },
-      'hr'        => function( $s ) { return $this->hr($s); },
-      'cr'        => function( $s ) { return $this->cr($s); },
-      'uc'        => function( $s ) { return strtoupper($s); },
-      'lc'        => function( $s ) { return strtolower($s); },
-      'raw'       => function( $s ) { return $s; },
-      'date'      => function( $s ) { return $s ? date_format( date_create( $s ), $this->date_format ) : ''; },
+      'html_with_br'  => function( $s, $e='' ) { return implode( "<br />\n", array_map( 'HTMLentities', preg_split( '/\r?\n/', $s ) ) ); },
+      'post_url_link' => function( $s, $e='' ) { return HTMLentities(get_permalink( $s )); },
+      'post_url_raw'  => function( $s, $e='' ) { return get_permalink( $s ); },
+      'ucfirst'   => function( $s, $e='' ) { return ucfirst($s); },
+      'hr'        => function( $s, $e='' ) { return $this->hr($s); },
+      'cr'        => function( $s, $e='' ) { return $this->cr($s); },
+      'uc'        => function( $s, $e='' ) { return strtoupper($s); },
+      'lc'        => function( $s, $e='' ) { return strtolower($s); },
+      'raw'       => function( $s, $e='' ) { return $s; },
+      'date'      => function( $s, $e='' ) { return $s ? date_format( date_create( $s ), $this->date_format ) : ''; },
       'enc'       => 'rawurlencode',
-      'rand_enc'  => function( $s ) { return $this->random_url_encode( $s ); },
+      'rand_enc'  => function( $s, $e='' ) { return $this->random_url_encode( $s ); },
       'integer'   => 'intval',
-      'boolean'   => function( $s ) { return $s ? 'true' : 'false'; },
+      'boolean'   => function( $s, $e='' ) { return $s ? 'true' : 'false'; },
       'shortcode' => 'do_shortcode',
-      'strip'     => function( $s ) { return preg_replace( '/\s*\b(height|width)=["\']\d+["\']/', '', do_shortcode( $s ) ); },
-      'spliturl'  => function( $s ) { return preg_replace( '/([.\/])(?![.\/])/','\1<wbr/>', HTMLentities($s) ); },
-      'rand_html' => function( $s ) { return $this->random_html_entities( $s ); },
+      'strip'     => function( $s, $e='' ) { return preg_replace( '/\s*\b(height|width)=["\']\d+["\']/', '', do_shortcode( $s ) ); },
+      'spliturl'  => function( $s, $e='' ) { return preg_replace( '/([.\/])(?![.\/])/','\1<wbr/>', HTMLentities($s) ); },
+      'rand_html' => function( $s, $e='' ) { return $this->random_html_entities( $s ); },
       'html'      => 'HTMLentities',
-      'email'     => function( $s ) { // embeds an email link into the page!
-        if( $s == '' ) {
-          return '';
-        }
+      'email'     => function( $s, $e='' ) { // embeds an email link into the page!
         $s = strpos( $s, '@' ) !== false ? $s : $s.'@'.get_theme_mod('email_domain');
         return sprintf( '<a href="mailto:%s">%s</a>', $this->random_url_encode( $s ),
           $this->random_html_entities( $s ) );
       },
-      'wp'        => function( $s ) { // Used to call one of the standard wordpress template blocks
+      'wp'        => function( $s, $e='' ) { // Used to call one of the standard wordpress template blocks
          switch( $s ) {
            case 'part-' === substr( $s, 0, 5) :
              ob_start();
@@ -1728,7 +1731,7 @@ class BaseThemeClass {
               return '';
             }
             if( array_key_exists( $render_type, $this->scalar_methods ) ) {
-              return $this->scalar_methods[ $render_type ]( $t_data );
+              return $this->scalar_methods[ $render_type ]( $t_data, $extra );
             }
             if( !is_scalar( $t_data ) ) { error_log( $template_code.' '.gettype( $t_data ) ); error_log( print_r( $t_data, 1 ) ); }
             return HTMLentities( $t_data );
@@ -1921,7 +1924,6 @@ class BaseThemeClass {
 
     $return = [];
     foreach( $entries as $post ) {
-
       $meta = get_fields( $post->ID );
       if( !is_array( $meta ) ) {
         $meta = [];
