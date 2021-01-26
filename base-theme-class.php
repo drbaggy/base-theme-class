@@ -1450,9 +1450,9 @@ class BaseThemeClass {
       'templates_comma'     => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, ', ' ); },
       'templates_semicolon' => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, '; ' ); },
       'templates_space'     => function( $t_data, $extra ) { return $this->templates_join( $t_data, $extra, ' ' ); },
-      'image_url' => function( $s, $e='' ) {
-        if( $s && is_array($s) && isset( $s['url'] ) && $s['url'] != '' ) {
-          return isset( $s['sizes'][$e] ) ? $s['sizes'][$e] : $s['url'];
+      'image_url' => function( $t_data, $extra='' ) {
+        if( $t_data && is_array($t_data) && isset( $t_data['url'] ) && $t_data['url'] != '' ) {
+          return isset( $t_data['sizes'][$extra] ) ? $t_data['sizes'][$extra] : $t_data['url'];
         }
         return '';
       },
@@ -1679,37 +1679,13 @@ class BaseThemeClass {
     }
     return false;
   }
-  protected function expand_template( $template_code, $data ) {
-    if( substr($template_code,0,2)=='__' ) {
-      if( array_key_exists(substr($template_code,2), $this->scalar_methods ) ) {
-        return $this->scalar_methods[ substr($template_code,2) ]( $data );
-      }
-      return $this->show_error( "Scalar method as template does not exist '$template_code'" );
-    }
-    if( ! array_key_exists( $template_code, $this->templates ) ) {
-      return $this->show_error( "Template '$template_code' is missing" );
-    }
-    // Apply any pre-processors to data - thie munges/amends the data-structure
-    // being passed...
-    if( array_key_exists( $template_code, $this->switchers ) ) {
-      $function = $this->switchers[$template_code];
-      $t = is_string( $function ) ? switch_non_empty( $data, $function ) : $function( $data, $this );
-      if( $t === false ) {
-        return '';
-      }
-      if( $t ) {
-        return $this->expand_template( $t, $data );
-      }
-    }
-    if( array_key_exists( $template_code, $this->preprocessors ) ) {
-      $function = $this->preprocessors[$template_code];
-      $data = $function( $data, $this );
-    }
+
+  protected function expand_string( $str, $data, $template_code ) {
     $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-=@~.!\w+]+)(?::([^\]]+))?\]\]/',
        implode('|',array_keys( $this->array_methods )),
        implode('|',array_keys( $this->scalar_methods )) );
 
-    $out = implode( '', array_map(
+    return implode( '', array_map(
       function( $t ) use ( $data, $template_code, $regexp ) {
         return is_object($t) && ($t instanceof Closure)
       ? $t( $data, $template_code ) // If the template being parsed is a closure then we call the function
@@ -1739,8 +1715,39 @@ class BaseThemeClass {
           $t
         );
       },
-      $this->templates[$template_code]
+      $str
     ));
+  }
+  protected function expand_template( $template_code, $data ) {
+    if( substr($template_code,0,2)=='__' ) {
+      if( array_key_exists(substr($template_code,2), $this->scalar_methods ) ) {
+        return $this->scalar_methods[ substr($template_code,2) ]( $data );
+      }
+      return $this->show_error( "Scalar method as template does not exist '$template_code'" );
+    }
+    if( ! array_key_exists( $template_code, $this->templates ) ) {
+      return $this->show_error( "Template '$template_code' is missing" );
+    }
+    // Apply any pre-processors to data - thie munges/amends the data-structure
+    // being passed...
+    if( array_key_exists( $template_code, $this->switchers ) ) {
+      $function = $this->switchers[$template_code];
+      $t = is_string( $function ) ? switch_non_empty( $data, $function ) : $function( $data, $this );
+      if( is_array( $t ) ) {
+        return $this->expand_string( $t, $data, 'switch-'.$template_code );
+      }
+      if( $t === false ) {
+        return '';
+      }
+      if( $t ) {
+        return $this->expand_template( $t, $data );
+      }
+    }
+    if( array_key_exists( $template_code, $this->preprocessors ) ) {
+      $function = $this->preprocessors[$template_code];
+      $data = $function( $data, $this );
+    }
+    $out = $this->expand_string( $this->templates[$template_code], $data, $template_code );
     // Apply any post processors to the markup - this can clean up the HTML afterwards...
     if( array_key_exists( $template_code, $this->postprocessors ) ) {
       $function = $this->postprocessors[$template_code];
