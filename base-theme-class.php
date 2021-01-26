@@ -1343,10 +1343,15 @@ class BaseThemeClass {
     if( ! ( isset( $atts ) && is_array( $atts ) && sizeof( $atts ) ) ) {
       return '';
     }
-    $atts = implode( ' ', $atts );
+    $attr_string = implode( ' ', $atts );
     if( $atts == 'undefined' ) {
       return '';
     }
+    $atts_components = [];
+    foreach( $atts as $k => $v ) {
+      $atts_components[] = substr($k,0,1) == '-' ? "$k=$v" : $v;
+    }
+    $attr_string = implode( ' ', $atts_components );
     $class='pub-simple';
     if( isset( $atts['class'] ) ) {
       $class=$atts['class'];
@@ -1362,7 +1367,7 @@ class BaseThemeClass {
       $random_id,
       $class,
       HTMLentities( get_theme_mod( 'publication_options' ) ),
-      HTMLentities( $atts )
+      $attr_string
     ).
     $this->add_script( '', 'show_pubs("#pub-'.$random_id.'")' );
   }
