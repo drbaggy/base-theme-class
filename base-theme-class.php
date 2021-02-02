@@ -77,6 +77,11 @@
 
  */
 
+define( 'QR_FIELDS', [
+  'Slug'    => [ 'type' => 'text' ],
+  'URL'     => [ 'type' => 'link' ],
+]);
+
 function no_of_words() {
   $w = get_theme_mod( 'card_words');
   if( $w <= 0 ) {
@@ -381,6 +386,112 @@ class BaseThemeClass {
          ->add_roles_to_profile()
          ;
   }
+
+  function qr_code_base_url() {
+    $base_url = get_option(    'qr_code_base_url' );
+    if( ! $base_url ) {
+      $base_url = 'https:'.$_SERVER['HTTP_HOST'].'/q/';
+    }
+    return $base_url;
+  }
+
+  function initialise_qr_codes() {
+    register_setting( 'qr_code', 'qr_code_base_url',     [ 'default' => '' ] );
+    if( is_admin() ) {
+      add_action( 'admin_menu', [ $this, 'qr_code_admin_menu' ], PHP_INT_MAX );
+    }
+    add_action( 'update_option_qr_code_base_url', [ $this, 'qr_code_update_base_url' ], PHP_INT_MAX, 2 );
+    add_filter( 'wp_insert_post_data', [ $this, 'qr_code_update_post_data' ] );
+    add_action( 'parse_request', [ $this, 'qr_code_parse_request' ] );
+    $this->define_type( 'QR code', QR_FIELDS, [ 'icon' => 'warning', 'prefix' => 'q', 'add' => 'edit_private_pages', 'menu_order' => 49 ] );
+    return $this;
+  }
+  function qr_code_admin_menu() {
+    add_options_page( 'QR code', 'QR code', 'administrator', 'QR code', 'qr_code_options_form' );
+  }
+  function qr_code_options_form() {
+    $base_url = get_option(    'qr_code_base_url' );
+    echo '
+  <div>
+    <h2>QR code generation options</h2>
+    <p>
+      <strong>QR code/short urls</strong> allow easier to publish URLs for pages (on this site and on others) to be
+      referenced by a shorter "typeable" URL...
+    </p>
+    <form method="post" action="options.php">';
+    settings_fields(      'qr_code'        );
+    do_settings_sections( 'qr_code'        );
+    echo '
+      <table class="form-table">
+        <tbody>
+          <tr>
+            <th>Base URL:</th>
+            <td>
+              <input type="text" name="qr_code_base_url" id="qr_code_base_url" value=', $base_url, '
+              Base URL to use if not using default: ', $_SERVER['HTTP_HOST'],'/q/ , e.g. if you are
+              using an alternative subdomain
+            </td>
+          </tr>
+        </tbody>
+      </table>';
+    submit_button();
+    echo '
+    </form>
+  </div>';
+  }
+  function qr_code_update_base_url( $old, $new ) {
+    if( $old == $new ) {
+      return;
+    }
+    $posts = get_posts([
+      'post_type'   => 'qr_code',
+      'numberposts' => 1e6
+    ]);
+    $base_url = $new == '' ? 'https:'.$_SERVER['HTTP_HOST'].'/q/' : $new;
+    foreach( $posts as $p ) {
+      $p->post_title = preg_replace( '/^.*?->/',$base_url.substr($p->post_name,3).' ->', $p->post_title );
+      wp_update_post( $p );
+    }
+  }
+  function qr_code_update_post_data( $post_data ) {
+    if( $post_data[ 'post_type' ] === 'qr_code' && array_key_exists( 'acf', $_POST ) ) {
+      $slug = preg_replace('/\W+/', '', $_POST['acf']['field_q_slug'] );
+      do {
+        if( $slug === '' ) {
+          $slug = implode( '', array_map( function($i) { $p = '0123456789abcdefghijklmnopqrstuvwxyz'; return $p[mt_rand(0,35)]; }, range(1,8) ) );
+          $_POST['acf']['field_q_slug'] = $slug;
+        }
+        // Could add test here to see if generated slug already exists!
+      } while( $slug === '' );
+      $post_data[ 'post_name' ]  = 'qr-'.$slug;
+      $post_data[ 'post_title' ] = 'https://'.$_SERVER['HTTP_HOST'].'/q/'.$slug.'  ->  '.$_POST['acf']['field_q_url']['url'] ;
+    }
+    return $post_data;
+  }
+
+  function qr_code_parse_request() {
+    global $wp;
+    if( preg_match( '/^q\/(\w+)([.]png)?$/', $wp->request, $matches ) ) {
+      // Find post $matches[1];
+      header( 'Content-type: text/plain' );
+      $render_image = sizeof( $matches ) > 2;
+      $my_post = get_page_by_path( 'qr-'.$matches[1], OBJECT, 'qr_code' );
+      if( !$my_post || $my_post->post_status !== 'publish' ) {
+        return;
+      }
+      if( $render_image ) {
+        $URL = escapeshellcmd( 'https://'.$_SERVER['HTTP_HOST'].'/q/'.$matches[1] );
+        $cmd = implode( ' ',[ '/usr/bin/qrencode', '-m', '1', '-s', '4', '-l', 'Q', '-8', '-v', '3', '-o', '-', $URL ] );
+        header( 'Content-type: image/png' );
+        passthru( $cmd );
+      } else {
+        header( 'Location: '. get_field( 'url', $my_post->ID ) );
+      }
+      exit;
+    }
+    return;
+  }
+
   function add_roles_to_profile() {
     add_action( 'show_user_profile', [ $this, 'show_user_roles' ], 10, 1);
     return $this;
@@ -781,8 +892,10 @@ class BaseThemeClass {
       'title'           => $name,
       'fields'          => [],
       'location'        => $location,
+      'show_ui'         => true,
+      'show_in_menu'    => true,
       'options'         => [ 'position' => 'normal', 'layout' => 'no_box', 'hide_on_screen' => [] ],
-      'menu_order'      => array_key_exists( 'menu_order', $extra ) ? $extra['menu_order'] : 50,
+      'menu_position'   => array_key_exists( 'menu_order', $extra ) ? $extra['menu_order'] : 26,
       'label_placement' => isset( $extra['labels'] ) ? $extra['labels'] : 'left'
     ];
     if( !( array_key_exists( 'show_contents', $extra ) && $extra[ 'show_contents' ]) ) {
@@ -804,7 +917,7 @@ class BaseThemeClass {
         $pos++;
         $defn[ 'id'               ] = 'acf_'.$type.'_'.$fg['type' ];
         $defn[ 'title'            ] = $fg['title'];
-        $defn[ 'menu_order'       ]++;
+        $defn[ 'menu_position'       ]++;
         $defn[ 'label_placement'  ] = isset( $fg['labels'] ) ? $fg['labels'] : 'left';
         $defn[ 'fields'           ] = $this->munge_fields( $prefix.$fg['type'].'_', $fg['fields'], $type, $fg['type'].'_' );
         $defn[ 'options'          ] = [ 'position' => 'normal' ];
@@ -2357,7 +2470,7 @@ class BaseThemeClass {
     // jQuery
     if ( $wp_admin || $wp_customizer ) {
       // echo 'We are in the WP Admin or in the WP Customizer';
-      return;
+      return $this;
     } else {
       // Deregister WP core jQuery, see https://github.com/Remzi1993/wp-jquery-manager/issues/2 and https://github.com/WordPress/WordPress/blob/91da29d9afaa664eb84e1261ebb916b18a362aa9/wp-includes/script-loader.php#L226
       wp_deregister_script( 'jquery' ); // the jquery handle is just an alias to load jquery-core with jquery-migrate
@@ -2381,9 +2494,11 @@ class BaseThemeClass {
       wp_register_script( 'jquery', false, array( 'jquery-core' ), null, false );
       wp_enqueue_script( 'jquery' );
     }
+    return $this;
   }
   function register_jquery_latest() {
     add_action( 'wp_enqueue_scripts', [ $this, 'wp_jquery_manager_plugin_front_end_scripts'] );
+    return $this;
   }
   function add_script( $script, $js = '' ) {
     $md5 = md5( 'js:#:#:'.$script.':#:#:'.$js );
