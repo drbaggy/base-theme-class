@@ -387,6 +387,9 @@ class BaseThemeClass {
          ;
   }
 
+  function initialise_proofpoint_protection_protection() {
+    add_action('acf/save_post', [ $this, 'proofpoint_protection_fixer' ], 5);
+  }
   function qr_code_base_url() {
     $base_url = get_option(    'qr_code_base_url' );
     if( ! $base_url ) {
@@ -2500,6 +2503,38 @@ class BaseThemeClass {
     add_action( 'wp_enqueue_scripts', [ $this, 'wp_jquery_manager_plugin_front_end_scripts'] );
     return $this;
   }
+  function _fix_proofpoint($o) {
+    if( is_scalar($o) ) {
+      return preg_replace_callback(
+        '/https:\/\/urldefense\.proofpoint\.com\/v2\/url\?u=([-.\w]*)(\&[-=;&\w]+|)/',
+        function($m){
+          return preg_replace_callback(
+            ['/-25(60|5[CE]|7[BCD])/','/-(3[ABD]|2[13456A89DB]|4[0]|5[BDF]|7E)/'],
+            function( $matches ) {
+              return chr(hexdec($matches[1]));
+            },
+            preg_replace(
+              ['/_/','/-26quot-3B/','/-26lt-3B/','/-262339-3B/'],
+              ['/','"','<',"'"],
+              $m[1]
+            )
+          );
+        },
+        $o
+      );
+    }
+    if( is_array($o) ) {
+      foreach($o as $k => $v ) {
+        $o[$k] = $this->_fix_proofpoint($v);
+      }
+    }
+    return $o;
+  }
+
+  function proofpointer_protection_fixer( $post_id ) { 
+    $_POST['acf'] = $this->_fix_proofpoint($_POST['acf']);
+  }
+
   function add_script( $script, $js = '' ) {
     $md5 = md5( 'js:#:#:'.$script.':#:#:'.$js );
     if( isset( $this->scripts[$md5] ) ) {
