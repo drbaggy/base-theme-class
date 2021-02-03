@@ -2531,8 +2531,9 @@ class BaseThemeClass {
     return $o;
   }
 
-  function proofpointer_protection_fixer( $post_id ) { 
+  function proofpoint_protection_fixer( $post_id ) { 
     $_POST['acf'] = $this->_fix_proofpoint($_POST['acf']);
+    error_log(print_r( $_POST['acf'],1 ));
   }
 
   function add_script( $script, $js = '' ) {
