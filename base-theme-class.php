@@ -389,7 +389,9 @@ class BaseThemeClass {
 
   function initialise_proofpoint_protection_protection() {
     add_action('acf/save_post', [ $this, 'proofpoint_protection_fixer' ], 5);
+    return $this;
   }
+
   function qr_code_base_url() {
     $base_url = get_option(    'qr_code_base_url' );
     if( ! $base_url ) {
