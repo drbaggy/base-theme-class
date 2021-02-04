@@ -2561,7 +2561,7 @@ class BaseThemeClass {
         '/https:\/\/urldefense\.proofpoint\.com\/v2\/url\?u=([-.\w]*)(\&[-=;&\w]+|)/',
         function($m){
           return preg_replace_callback(
-            ['/-25(60|5[CE]|7[BCD])/','/-(3[ABD]|2[13456A89DB]|4[0]|5[BDF]|7E)/'],
+            ['/-25(60|5[CE]|7[BCD])/','/-(3[ABDF]|2[13456A89DB]|4[0]|5[BDF]|7E)/'],
             function( $matches ) {
               return chr(hexdec($matches[1]));
             },
