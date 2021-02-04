@@ -77,6 +77,40 @@
 
  */
 
+  const FILTER_LIST = [
+    'png' => [ 'png' => 'image/png' ],
+    'svg' => [ 'svg' => 'image/svg+xml' ],
+    'gif' => [ 'gif' => 'image/gif' ],
+    'jpg' => [ 'jpg|jpeg|jpe' => 'image/jpg' ],
+    'images' => [ 'png' => 'image/png', 'jpg|jpeg|jpe' => 'image/jpg' ],
+    'documents' => [ 
+               'pdf' => 'application/pdf',
+               'ppt' => 'application/vnd.ms-powerpoint',
+               'odp' => 'application/vnd.oasis.opendocument.presentation',
+               'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+               'doc' => 'application/msword',
+               'odt' => 'application/vnd.oasis.opendocument.text',
+               'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+               'xls' => 'application/vnd.ms-excel',
+               'ods' => 'application/vnd.oasis.opendocument.spreadsheet',
+               'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+               'txt' => 'text/plain',
+               'tab|tsv' => 'text/tab-separated-values','csv' => 'text/csv' ],
+    'pdf' => [ 'pdf' => 'application/pdf' ],
+    'ppt' => [ 'ppt' => 'application/vnd.ms-powerpoint',
+               'odp' => 'application/vnd.oasis.opendocument.presentation',
+               'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ],
+    'doc' => [ 'doc' => 'application/msword',
+               'odt' => 'application/vnd.oasis.opendocument.text',
+               'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ],
+    'xls' => [ 'xls' => 'application/vnd.ms-excel',
+               'ods' => 'application/vnd.oasis.opendocument.spreadsheet',
+               'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ],
+    'txt' => [ 'txt' => 'text/plain' ],
+    'csv' => [ 'tab|tsv' => 'text/tab-separated-values','csv' => 'text/csv' ],
+    'zip' => [ 'zip' => 'application/zip' ],
+    'json' => [ 'json' => 'application/json' ],
+  ];
 define( 'QR_FIELDS', [
   'Slug'    => [ 'type' => 'text' ],
   'URL'     => [ 'type' => 'link' ],
@@ -387,6 +421,22 @@ class BaseThemeClass {
          ;
   }
 
+  function restrict_uploads( $arr ) {
+    add_filter('upload_mimes', function( $mimes ) use( $arr ) {
+      $mt = [];
+      foreach( $arr as $type ) {
+        if( isset( FILTER_LIST[ $type ] ) ) {
+          foreach( FILTER_LIST[ $type ] as $k => $v ) {
+            $mt[$k] = $v;
+          }
+        } elseif( isset( $mimes[ $type ] ) ) {
+          $mt[$type] = $mimes[ $type ];
+        }
+      }
+      return $mt;
+    });
+    return $this;
+  }
   function initialise_proofpoint_protection_protection() {
     add_action('acf/save_post', [ $this, 'proofpoint_protection_fixer' ], 5);
     return $this;
