@@ -981,6 +981,13 @@ class BaseThemeClass {
     }
 
     if( array_key_exists( 'title_template', $extra ) ) {
+      add_action( 'admin_head', function( ) use ($type) {
+        $sc = get_current_screen();
+        if( $sc->post_type == $type ) {
+          echo '<script>window.hide_title = true;</script>';
+          error_log($type.' == '. $sc->post_type);
+        }
+      });
       add_filter( 'wp_insert_post_data', function( $post_data ) use ($type,$prefix,$extra) {
         if( $post_data[ 'post_type' ] === $type && array_key_exists( 'acf', $_POST ) ) {
           $post_data[ 'post_title' ] = trim(preg_replace( '/\s+/', ' ',
@@ -2083,6 +2090,9 @@ class BaseThemeClass {
     if( !$post ) {
       return;
     }
+    return $this->process_entry( $post );
+  }
+  function process_entry( $post ) {
     $meta = get_fields( $post->ID );
     if( !is_array( $meta ) ) {
       $meta = [];
@@ -2103,27 +2113,14 @@ class BaseThemeClass {
 
   function get_entries( $type, $extra = array() ) {
     $get_posts = new WP_Query;
-    $entries = $get_posts->query( array_merge( ['posts_per_page'=>-1,'post_type'=>$type], $extra ) );
-
-    $return = [];
-    foreach( $entries as $post ) {
-      $meta = get_fields( $post->ID );
-      if( !is_array( $meta ) ) {
-        $meta = [];
-      }
-      $return[] = array_merge( $meta, [
-        'ID'           => $post->ID,
-        'post_title'   => $post->post_title,
-        'post_type'    => $post->post_type,
-        'post_excerpt' => $post->post_excerpt,
-        'post_content' => $post->post_content,
-        'post_url'     => get_permalink( $post ),
-        'post_name'    => $post->post_name,
-        'created_at'   => $post->post_date_gmt,
-        'updated_at'   => $post->post_modified_gmt,
-      ] );
+    $pars = [ 'posts_per_page'=>-1 ];
+    if( $type != '' ) {
+      $pars[ 'post_type' ] = $type;
     }
-    return $return;
+    
+    $entries = $get_posts->query( array_merge( $pars, $extra ) );
+
+    return array_map( function( $_ ) { return $this->process_entry($_); }, $entries );
   }
 
   function get_entries_light( $type, $extra = array(), $keys = array() ) {
