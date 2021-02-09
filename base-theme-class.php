@@ -1285,7 +1285,9 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
        group_concat(if(m.meta_key="url",
         SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING_INDEX(m.meta_value,"\"url\";s:",-1),
           "\"",2),"\"",-1),"") separator "") url
-  from wp_posts p, wp_postmeta m where p.ID = m.post_id and p.post_type = "qr_code" group by p.ID' );
+  from wp_posts p, wp_postmeta m where p.ID = m.post_id and
+       p.post_type = "qr_code" and p.post_status = "publish"
+ group by p.ID' );
     return $res->fetch_all();
   }
 
