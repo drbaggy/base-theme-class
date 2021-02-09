@@ -1246,6 +1246,10 @@ class BaseThemeClass {
          'methods' => 'GET',
          'callback' => [ $this, 'my_admin_search' ]
        ) );
+       register_rest_route( 'base', 'qr_redirects', array(
+         'methods' => 'GET',
+         'callback' => [ $this, 'qr_code_results' ]
+       ) );
     } );
     return $this;
   }
@@ -1260,6 +1264,17 @@ class BaseThemeClass {
     $wp_meta_boxes['dashboard']['normal']   = [];
     wp_add_dashboard_widget('custom_help_widget', 'My pages and objects', [$this, 'dashboard_my_pages_and_objects' ]);  // Add custom widget
     wp_add_dashboard_widget('custom_search_widget', 'Quick Search',             [$this, 'custom_search_box' ]);  // Add custom widget
+  }
+
+  function qr_code_results( $data ) {
+    global $wpdb;
+    $res = $wpdb->dbh->query( '
+select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
+       group_concat(if(m.meta_key="url",
+        SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING_INDEX(m.meta_value,"\"url\";s:",-1),
+          "\"",2),"\"",-1),"") separator "") url
+  from wp_posts p, wp_postmeta m where p.ID = m.post_id and p.post_type = "qr_code" group by p.ID' );
+    return $res->fetch_all();
   }
 
   function my_admin_search( $data ) {
