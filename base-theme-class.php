@@ -458,6 +458,13 @@ class BaseThemeClass {
     add_action( 'update_option_qr_code_base_url', [ $this, 'qr_code_update_base_url' ], PHP_INT_MAX, 2 );
     add_filter( 'wp_insert_post_data', [ $this, 'qr_code_update_post_data' ] );
     add_action( 'parse_request', [ $this, 'qr_code_parse_request' ] );
+    add_action( 'rest_api_init', function () { // Nasty SQL query used by static publish to create the rewrite-map-files.txt
+      register_rest_route( 'base', 'qr_redirects', array(
+        'methods' => 'GET',
+        'callback' => [ $this, 'qr_code_results' ]
+      ) );
+    } );
+
     $this->define_type( 'QR code', QR_FIELDS, [ 'icon' => 'warning', 'prefix' => 'q', 'add' => 'edit_private_pages', 'menu_order' => 49 ] );
     return $this;
   }
@@ -1245,10 +1252,6 @@ class BaseThemeClass {
        register_rest_route( 'base', 'search/(?P<s>.+)', array(
          'methods' => 'GET',
          'callback' => [ $this, 'my_admin_search' ]
-       ) );
-       register_rest_route( 'base', 'qr_redirects', array(
-         'methods' => 'GET',
-         'callback' => [ $this, 'qr_code_results' ]
        ) );
     } );
     return $this;
