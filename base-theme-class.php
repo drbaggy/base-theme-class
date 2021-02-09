@@ -465,7 +465,7 @@ class BaseThemeClass {
       ) );
     } );
 
-    $this->define_type( 'QR code', QR_FIELDS, [ 'icon' => 'warning', 'prefix' => 'q', 'add' => 'edit_private_pages', 'menu_order' => 49 ] );
+    $this->define_type( 'QR code', QR_FIELDS, [ 'title_template' => '[[slug]] - [[url.url]]', 'icon' => 'warning', 'prefix' => 'q', 'add' => 'edit_private_pages', 'menu_order' => 49 ] );
     return $this;
   }
   function qr_code_admin_menu() {
