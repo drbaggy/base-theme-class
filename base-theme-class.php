@@ -1002,7 +1002,16 @@ class BaseThemeClass {
               function( $m ) use ( $prefix ) {
                 $t = $_POST['acf'];
                 foreach( explode('.',$m[1]) as $k ) {
-                  $t = $t[ "field_${prefix}$k" ];
+                  if( is_object( $t ) ) {
+                    $t = $t->$k;
+                  } else {
+                    $p = "field_${prefix}$k";
+                    if( array_key_exists( $p, $t ) ) {
+                      $t = $t[$p];
+                    } else {
+                      $t = $t[$k];
+                    }
+                  }
                 }
                 return $t;
               },
