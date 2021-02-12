@@ -1,6 +1,6 @@
 (function($) {
   // Make the title readonly and "hide" the input box!
-  if( hide_title ) { // Hide the input element and replace by HTML...
+  if( typeof hide_title !== 'undefined' && hide_title  ) { // Hide the input element and replace by HTML...
     $('#title').prop('readonly',true).parent().hide();
     if($('#wp-admin-bar-view').length) {
       $('#title')
