@@ -126,12 +126,21 @@ function no_of_words() {
 
 function is_non_empty_array( $data, $key='' ) {
   if( $key != '' ) {
+    if( preg_match( '/(.*?)[.](.*)/', $key, $matches ) ) {
+      $key = $matches[1];
+      $part = $matches[2];
+    } else {
+      $part = '';
+    }
     if( is_array( $data ) && array_key_exists( $key, $data ) && isset( $data[$key] ) ) {
       $data = $data[$key];
     } elseif( is_object( $data ) && property_exists( $data, $key ) && isset( $data->$key ) ) {
       $data = $data->$key;
     } else {
       return false;
+    }
+    if( $part != '' ){
+      return is_non_empty_array( $data, $part );
     }
   }
   return is_array($data) && 0 < count($data);
@@ -146,12 +155,21 @@ function switch_non_empty_array( $data, $key = '') {
 
 function is_non_empty_string( $data, $key='' ) {
   if( $key != '' ) {
+    if( preg_match( '/(.*?)[.](.*)/', $key, $matches ) ) {
+      $key = $matches[1];
+      $part = $matches[2];
+    } else {
+      $part = '';
+    }
     if( is_array( $data ) && array_key_exists( $key, $data ) && isset( $data[$key] ) ) {
       $data = $data[$key];
     } elseif( is_object( $data ) && property_exists( $data, $key ) && isset( $data->$key ) ) {
       $data = $data->$key;
-    } else { // Element doesn't exist!
+    } else {
       return false;
+    }
+    if( $part != '' ){
+      return is_non_empty_string( $data, $part );
     }
   }
   return isset( $data )              // Exists
