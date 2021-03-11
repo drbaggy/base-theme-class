@@ -886,6 +886,10 @@ class BaseThemeClass {
   // Convert a human readable name into a valid variable name...
     return strtolower( preg_replace( '/\s+/', '_', $string ) );
   }
+  function lodash( $string ) {
+  // Convert a human readable name into a valid variable name...
+    return strtolower( preg_replace( '/\s+/', '-', $string ) );
+  }
   function pl( $string ) {
   // Pluralize and english string...
   // ends in "y" replace with "ies" ; o/w add "s"
@@ -1695,19 +1699,27 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
       'ucfirst'   => function( $s, $e='' ) { return ucfirst($s); },
       'hr'        => function( $s, $e='' ) { return $this->hr($s); },
       'cr'        => function( $s, $e='' ) { return $this->cr($s); },
+      'lodash'    => function( $s, $e='' ) { return $this->lodash($s); },
+      'bytes'      => function( $s, $e='-' ) {
+         if( $e=='' ) {
+           $e = $s > 8e8 ? 'G' : ($s > 8e5 ? 'M' : ( $s > 10000 ? 'K' : '' ));
+         }
+         return $e == 'G' ? sprintf( '0.1f GB', $s/1024/1024/1024 ) :
+              ( $e == 'M' ? sprintf( '0.1f MB', $s/1024/1024 ) : 
+              ( $e == 'K' ? sprintf( '%d KB', $s/1024 ) : $s.' bytes' )); },
       'uc'        => function( $s, $e='' ) { return strtoupper($s); },
       'lc'        => function( $s, $e='' ) { return strtolower($s); },
       'raw'       => function( $s, $e='' ) { return $s; },
       'date'      => function( $s, $e='' ) { return $s ? date_format( date_create( $s ), $this->date_format ) : ''; },
-      'enc'       => 'rawurlencode',
+      'enc'       => function( $s, $e='' ) { return rawurlencode( $s ); },
       'rand_enc'  => function( $s, $e='' ) { return $this->random_url_encode( $s ); },
-      'integer'   => 'intval',
+      'integer'   => function( $s, $e='' ) { return intval($s); },
       'boolean'   => function( $s, $e='' ) { return $s ? 'true' : 'false'; },
-      'shortcode' => 'do_shortcode',
+      'shortcode' => function( $s, $e='' ) { return do_shortcode($s); },
       'strip'     => function( $s, $e='' ) { return preg_replace( '/\s*\b(height|width)=["\']\d+["\']/', '', do_shortcode( $s ) ); },
       'spliturl'  => function( $s, $e='' ) { return preg_replace( '/([.\/])(?![.\/])/','\1<wbr/>', HTMLentities($s) ); },
       'rand_html' => function( $s, $e='' ) { return $this->random_html_entities( $s ); },
-      'html'      => 'HTMLentities',
+      'html'      => function( $s, $e='' ) { return HTMLentities($s); },
       'email'     => function( $s, $e='' ) { // embeds an email link into the page!
         if($s=='') {
           return '';
