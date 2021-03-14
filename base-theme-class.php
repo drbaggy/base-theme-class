@@ -188,17 +188,35 @@ function switch_non_empty_string( $data, $key = '') {
 }
 
 function switch_non_empty( $data, $key = '' ) {
-  if( $key != '' ) {
+  $k=$key;
+  while( $key != '' ) {
+    if( preg_match( '/(.*?)[.](.*)/', $key, $matches ) ) {
+      $key = $matches[1];
+      $part = $matches[2];
+    } else {
+      $part = '';
+    }
     if( is_array( $data ) && array_key_exists( $key, $data ) && isset( $data[$key] ) ) {
       $data = $data[$key];
     } elseif( is_object( $data ) && property_exists( $data, $key ) && isset( $data->$key ) ) {
       $data = $data->$key;
-    } else { // Element doesn't exist!
+    } else {
       return false;
     }
+    $key = $part;
   }
-  return isset( $data ) && is_array( $data ) ? switch_non_empty_array( $data ) : switch_non_empty_string( $data );
+  if( isset( $data ) && is_array( $data ) ) {
+    if( is_non_empty_array( $data ) ) {
+      return;
+    }
+    return false;
+  }
+  if( is_non_empty_string( $data ) ) {
+    return;
+  }
+  return false;
 }
+
 function f( $a ) {
   $b = array_map( function($x) { return $x == 'None' || $x == 'Other' ? lcfirst($x) : $x; }, $a );
   return array_combine( $b, $a );
@@ -884,11 +902,11 @@ class BaseThemeClass {
   }
   function cr( $string ) {
   // Convert a human readable name into a valid variable name...
-    return strtolower( preg_replace( '/\s+/', '_', $string ) );
+    return strtolower( preg_replace( '/\W+/', '_', $string ) );
   }
   function lodash( $string ) {
   // Convert a human readable name into a valid variable name...
-    return strtolower( preg_replace( '/\s+/', '-', $string ) );
+    return strtolower( preg_replace( '/\W+/', '-', $string ) );
   }
   function pl( $string ) {
   // Pluralize and english string...
@@ -1974,7 +1992,16 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
     // being passed...
     if( array_key_exists( $template_code, $this->switchers ) ) {
       $function = $this->switchers[$template_code];
-      $t = is_string( $function ) ? switch_non_empty( $data, $function ) : $function( $data, $this );
+      if( is_array( $function ) ) {
+        $t = switch_non_empty( $data, $function[0] );
+        if( $t === false ) {
+          $t=$function[1];
+        }
+      } elseif( is_string( $function ) ) {
+        $t = switch_non_empty( $data, $function );
+      } else {
+        $t = $function( $data, $this );
+      }
       if( is_array( $t ) ) {
         return $this->expand_string( $t, $data, 'switch-'.$template_code );
       }
@@ -2641,7 +2668,6 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
 
   function proofpoint_protection_fixer( $post_id ) { 
     $_POST['acf'] = $this->_fix_proofpoint($_POST['acf']);
-    error_log(print_r( $_POST['acf'],1 ));
   }
 
   function add_script( $script, $js = '' ) {
