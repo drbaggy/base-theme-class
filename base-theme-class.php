@@ -1505,6 +1505,7 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
   function remove_posts_admin() {
     add_action( 'admin_bar_menu',             array( $this, 'change_default_new_link' ), PHP_INT_MAX-1 );
     add_action( 'admin_menu',                 array( $this, 'remove_posts_sidebar' ) );
+    return $this;
   }
 
   function remove_comments_admin() {
@@ -1533,6 +1534,7 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
     // Change the title (to include default add action!)
     $new_content_node->title = preg_replace(
        '/(label">).*?</', '$1'.__('New').' ('.__($title).')<', $new_content_node->title );
+    $wp_admin_bar->remove_node( 'new-post' );
     $wp_admin_bar->remove_node('new-content');
     $wp_admin_bar->add_node( $new_content_node);
     $wp_admin_bar->remove_menu('comments');
@@ -1541,9 +1543,9 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
   }
 
 
-  // Remove posts sidebar entries...
   function remove_posts_sidebar() {
     $this->remove_sidebar_entry('edit.php');
+    
   }
   // Remove comments from post/page listings...
   function remove_comments_sidebar() {
