@@ -173,7 +173,7 @@ function is_non_empty_string( $data, $key='' ) {
     }
   }
   return isset( $data )              // Exists
-      && is_string( $data )          // Is a string
+      && is_scalar( $data )          // Is a string
       && 0 < strlen( $data )         // Is empty string
       && $data != 'undefined'
       && preg_replace( [ '/<[^>]+>/', '/\s+/' ], ['',''], $data ) != '' // No non-tag / non-white space characters
@@ -1943,7 +1943,7 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
   }
 
   protected function expand_string( $str, $data, $template_code ) {
-    $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-=@~.!\w+]+)(?::([^\]]+))?\]\]/',
+    $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-#=@~.!\w+]+)(?::([^\]]+))?\]\]/',
        implode('|',array_keys( $this->array_methods )),
        implode('|',array_keys( $this->scalar_methods )) );
 
@@ -2061,6 +2061,11 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
                 $t_data = get_field( substr($key,1), $t_data->ID );
                 continue;
               }
+              if( substr( $key, 0, 1 ) === '#' ) { // Need to look this up in the database as not in the
+                                                   // object hash at the moment.
+                $t_data = get_post_meta( $t_data->ID, substr($key,1), true );
+                continue;
+              }
               if( $key == '@' ) {
                 $key = 'comment_count';
               }
@@ -2071,6 +2076,18 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
             }
             if( !is_array( $t_data ) ) {
               return ''; // No value in tree with that key!
+            }
+            if( isset($t_data['ID']) ) {
+              if( substr( $key, 0, 1 ) === '!' ) { // Need to look this up in the database as not in the
+                                                   // object hash at the moment.
+                 $t_data = get_field( substr($key,1), $t_data['ID'] );
+                continue;
+              }
+              if( substr( $key, 0, 1 ) === '#' ) { // Need to look this up in the database as not in the
+                                                   // object hash at the moment.
+                $t_data = get_post_meta( $t_data['ID'], substr($key,1), true );
+                continue;
+              }
             }
             // key doesn't exist in data structure or has null value...
             if( !array_key_exists( $key, $t_data ) ||
