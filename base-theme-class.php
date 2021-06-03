@@ -966,9 +966,9 @@ class BaseThemeClass {
   }
 
   // Function to add clone link to post category page
-  function add_clone_link( $type, $actions, $post ) {
-    $sc = get_current_screen();
-    if( $sc->post_type == $type && current_user_can('edit_posts') ) {
+  function add_clone_link( $type, $actions, $post, $user_type = 'edit_posts' ) {
+    // Only add link if use can edit posts && has clone set {may 
+    if( get_current_screen()->post_type === $type && current_user_can($user_type) ) {
       $actions['duplicate'] = sprintf( '<a href="%s" title="Clone this item" rel="permalink">Clone</a>',
         wp_nonce_url('admin.php?action=clone_post&post='. $post->ID, basename(__FILE__), 'duplicate_nonce' )
       );
@@ -977,51 +977,67 @@ class BaseThemeClass {
   }  
 
   // Handles cloning of post...
-  function clone_post( $type ) {
+  function clone_post( $type, $user_type = 'edit_posts' ) {
     global $wpdb;
 
     // First we check that the attributes in the URL are valid...
     //
-    if( ! ( isset( $_GET['post']) || isset( $_POST['post']) ) ) {
+    if( ! isset( $_GET['post']  )
+     && ! isset( $_POST['post'] )
+    ) {
       return; // post id not passed in.
     }
-    if( ! ( isset($_REQUEST['action']) && 'clone_post' == $_REQUEST['action'] ) ) {
-     return; // action isn't clone post
+    if( ! isset( $_REQUEST['action'] )
+     || 'clone_post' != $_REQUEST['action']
+    ) {
+      return; // action isn't clone post
     }
-    if( !isset( $_GET['duplicate_nonce'] ) || !wp_verify_nonce( $_GET['duplicate_nonce'], basename( __FILE__ ) ) ) {
-       return; // Nonce is missing
+    if( ! isset( $_GET['duplicate_nonce'] )
+     || ! wp_verify_nonce( $_GET['duplicate_nonce'], basename( __FILE__ ) )
+    ) {
+      return; // Nonce is missing
     }
-    $post = get_post( $post_id = isset($_GET['post']) ? absint( $_GET['post'] ) : absint( $_POST['post'] ) );
+    $post = get_post( $post_id = absint( isset($_GET['post']) ? $_GET['post'] : $_POST['post'] ) );
     if( $post->post_type != $type ) {
       return; // Post is not of correct type...
     }
 
-    // Now create the base post...
-    //
-    $current_user = wp_get_current_user(); // Get current user..
-    // Create new post with the same attributes EXCEPT status, author and title (prefix clone)
-    $args = [ 'post_status' => 'draft','post_author'=> $current_user->ID, 'post_title' => '[CLONE] '.$post->post_title ];
-    foreach( ['comment_status','ping_status','post_content','post_excerpt','post_name',
-              'post_parent','post_password','post_type','to_ping','menu_order'] as $_ ) {
-      $args[$_] = $post->$_;
-    }
-    $new_post_id = wp_insert_post( $args );
+    // Now create the base post.. with the same attributes EXCEPT status,
+    // author and title (prefix clone)
+    $new_post_id = wp_insert_post([
+      'post_status'    => 'draft',
+      'post_author'    => wp_get_current_user()->ID,
+      'post_title'     => '[CLONE] '.$post->post_title,
+      'comment_status' => $post->comment_status,
+      'ping_status'    => $post->ping_status,
+      'post_content'   => $post->post_content,
+      'post_excerpt'   => $post->post_excerpt,
+      'post_name'      => $post->post_name,
+      'post_parent'    => $post->post_parent,
+      'post_password'  => $post->post_password,
+      'post_type'      => $post->post_type,
+      'to_ping'        => $post->to_ping,
+      'menu_order'     => $post->menu_order,
+    ]);
 
     // Get all taxonomy terms associated with old post and duplicate them..
     //
-    $taxonomies = get_object_taxonomies($post->post_type);
-    foreach ($taxonomies as $taxonomy) {
-      $post_terms = wp_get_object_terms($post_id, $taxonomy, array('fields' => 'slugs'));
-      wp_set_object_terms($new_post_id, $post_terms, $taxonomy, false);
+    foreach ( get_object_taxonomies($post->post_type) as $taxonomy) {
+      wp_set_object_terms($new_post_id,
+        wp_get_object_terms($post_id, $taxonomy, array('fields' => 'slugs')),
+        $taxonomy, false
+      );
     }
 
     // Duplicate all the post meta attributes
     //
-    $wpdb->query(
-  'insert into '.$wpdb->postmeta.' (post_id, meta_key, meta_value)
-   select '.$new_post_id.', meta_key, meta_value
- from '.$wpdb->postmeta.'
-where post_id = '.$post_id.' and meta_key not in ("_wp_old_slug","_edit_lock")' );
+    $wpdb->query( sprintf('
+      insert into %s (post_id, meta_key, meta_value)
+      select %d, meta_key, meta_value
+        from %s
+       where post_id = %d and meta_key not in ("_wp_old_slug","_edit_lock")',
+      $wpdb->postmeta, $new_post_id, $wpdb->postmeta, $post_id
+    ));
 
     // Finally redirect to the new edit page
     //
@@ -1092,15 +1108,16 @@ where post_id = '.$post_id.' and meta_key not in ("_wp_old_slug","_edit_lock")' 
     }
 
     if( array_key_exists( 'clone', $extra ) ) {
-      add_filter('post_row_actions', function($actions,$post ) use ($type) {
+      $user_type = $extra['clone'] == 1 ? 'edit_posts' : $extra['clone'];
+      add_filter('post_row_actions', function($actions,$post ) use ($type,$user_type) {
         $sc = get_current_screen();
         if( $sc->post_type == $type ) {
-          return $this->add_clone_link($type,$actions,$post);
+          return $this->add_clone_link($type,$actions,$post, $user_type);
         }
         return $actions;
       }, 10, 2);
-      add_action( 'admin_action_clone_post', function() use ($type) {
-        return $this->clone_post( $type );
+      add_action( 'admin_action_clone_post', function() use ($type,$user_type) {
+        return $this->clone_post( $type, $user_type );
       });
     }
 
