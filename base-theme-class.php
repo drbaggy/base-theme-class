@@ -601,12 +601,12 @@ class BaseThemeClass {
 <table class="form-table" role="presentation">
 <tbody>
   <tr>
-		<th>Current user role</th>
-		<td>
-			<p class="description">%s</p>
-		  </p>
-		</td>
-	</tr>
+    <th>Current user role</th>
+    <td>
+      <p class="description">%s</p>
+      </p>
+    </td>
+  </tr>
 <tbody>
 </table>', ucfirst( $roles ) );
   }
@@ -965,6 +965,70 @@ class BaseThemeClass {
     return $this;
   }
 
+  // Function to add clone link to post category page
+  function add_clone_link( $type, $actions, $post ) {
+    $sc = get_current_screen();
+    if( $sc->post_type == $type && current_user_can('edit_posts') ) {
+      $actions['duplicate'] = sprintf( '<a href="%s" title="Clone this item" rel="permalink">Clone</a>',
+        wp_nonce_url('admin.php?action=clone_post&post='. $post->ID, basename(__FILE__), 'duplicate_nonce' )
+      );
+    }
+    return $actions;
+  }  
+
+  // Handles cloning of post...
+  function clone_post( $type ) {
+    global $wpdb;
+
+    // First we check that the attributes in the URL are valid...
+    //
+    if( ! ( isset( $_GET['post']) || isset( $_POST['post']) ) ) {
+      return; // post id not passed in.
+    }
+    if( ! ( isset($_REQUEST['action']) && 'clone_post' == $_REQUEST['action'] ) ) {
+     return; // action isn't clone post
+    }
+    if( !isset( $_GET['duplicate_nonce'] ) || !wp_verify_nonce( $_GET['duplicate_nonce'], basename( __FILE__ ) ) ) {
+       return; // Nonce is missing
+    }
+    $post = get_post( $post_id = isset($_GET['post']) ? absint( $_GET['post'] ) : absint( $_POST['post'] ) );
+    if( $post->post_type != $type ) {
+      return; // Post is not of correct type...
+    }
+
+    // Now create the base post...
+    //
+    $current_user = wp_get_current_user(); // Get current user..
+    // Create new post with the same attributes EXCEPT status, author and title (prefix clone)
+    $args = [ 'post_status' => 'draft','post_author'=> $current_user->ID, 'post_title' => '[CLONE] '.$post->post_title ];
+    foreach( ['comment_status','ping_status','post_content','post_excerpt','post_name',
+              'post_parent','post_password','post_type','to_ping','menu_order'] as $_ ) {
+      $args[$_] = $post->$_;
+    }
+    $new_post_id = wp_insert_post( $args );
+
+    // Get all taxonomy terms associated with old post and duplicate them..
+    //
+    $taxonomies = get_object_taxonomies($post->post_type);
+    foreach ($taxonomies as $taxonomy) {
+      $post_terms = wp_get_object_terms($post_id, $taxonomy, array('fields' => 'slugs'));
+      wp_set_object_terms($new_post_id, $post_terms, $taxonomy, false);
+    }
+
+    // Duplicate all the post meta attributes
+    //
+    $wpdb->query(
+  'insert into '.$wpdb->postmeta.' (post_id, meta_key, meta_value)
+   select '.$new_post_id.', meta_key, meta_value
+ from '.$wpdb->postmeta.'
+where post_id = '.$post_id.' and meta_key not in ("_wp_old_slug","_edit_lock")' );
+
+    // Finally redirect to the new edit page
+    //
+    wp_redirect( admin_url( 'post.php?action=edit&post=' . $new_post_id ) );
+    return;
+  }
+
   function define_type( $name, $fields, $extra=[] ) {
     if(! function_exists("register_field_group") ) {
       return  $this->show_error( 'ACF plugin not installed!', true );
@@ -1025,6 +1089,19 @@ class BaseThemeClass {
         $defn[ 'options'          ] = [ 'position' => 'normal' ];
         register_field_group( $defn );
       }
+    }
+
+    if( array_key_exists( 'clone', $extra ) ) {
+      add_filter('post_row_actions', function($actions,$post ) use ($type) {
+        $sc = get_current_screen();
+        if( $sc->post_type == $type ) {
+          return $this->add_clone_link($type,$actions,$post);
+        }
+        return $actions;
+      }, 10, 2);
+      add_action( 'admin_action_clone_post', function() use ($type) {
+        return $this->clone_post( $type );
+      });
     }
 
     if( array_key_exists( 'title_template', $extra ) ) {
