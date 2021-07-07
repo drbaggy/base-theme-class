@@ -358,6 +358,11 @@ const EXTRA_SETUP = [
     'other_options'    => [ 'disableReturn', 'disableDoubleReturn', 'disableExtraSpaces' ],
     'custom_buttons'   => [],
   ],
+  'medium_editor_link'    => [
+    'standard_buttons' => [ 'bold', 'italic', 'subscript', 'superscript', 'removeFormat', 'anchor', ],
+    'other_options'    => [ 'disableReturn', 'disableDoubleReturn', 'disableExtraSpaces' ],
+    'custom_buttons'   => [],
+  ],
   'medium_editor_paragraphs'    => [
     'standard_buttons' => [ 'bold', 'italic', 'subscript', 'superscript', 'removeFormat', 'unorderedlist', 'anchor', ],
     'other_options'    => [ 'disableExtraSpaces' ],
