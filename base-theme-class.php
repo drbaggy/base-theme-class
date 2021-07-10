@@ -397,6 +397,29 @@ class BaseThemeClass {
     return $this->custom_types[$code]['name'];
   }
 
+  public function simple_feed( $object_type, $mapper, $image_size = '' ) {
+    global $wpdb;
+    $ptmp = $wpdb->dbh->query(
+      'select ID from wp_posts
+        where post_type="'.$object_type.'"
+          and post_status="publish"'
+    )->fetch_all();
+    $posts = [];
+    foreach( $ptmp as $p ) {
+      $posts[ $p[0] ] = [ 'url' => get_permalink($p[0]) ];
+      $t = $wpdb->dbh->query('
+        select meta_key,meta_value
+          from wp_postmeta where post_id = '.$p[0].' and
+               meta_key in ("'.implode('","',array_keys($mapper)).'")'
+      )->fetch_all();
+      foreach($t as $r) {
+        $posts[$p[0]][$mapper[$r[0]]] = $r[1];
+      }
+      $posts[$p[0]]['image_url'] = wp_get_attachment_image_src($posts[$p[0]]['image_id'],$image_size)[0];
+    }
+    return $posts;
+  }
+
   public function __construct( $defn ) {
     $this->is_simply_static = preg_match( '/WordPress\/\d+\.\d+\.\d+/', $_SERVER['HTTP_USER_AGENT'] ) ||
                               preg_match( '/FETCHER/',                  $_SERVER['HTTP_USER_AGENT'] );
