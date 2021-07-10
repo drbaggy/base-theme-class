@@ -45,7 +45,7 @@
                  * apply simple templates to acf pro data structures!
                  * to fix annoying defaults in wordpress
                  * to handle sanger publications
- * Version:     0.5.1
+ * Version:     0.5.3
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
@@ -173,7 +173,7 @@ function is_non_empty_string( $data, $key='' ) {
     }
   }
   return isset( $data )              // Exists
-      && is_string( $data )          // Is a string
+      && is_scalar( $data )          // Is a string
       && 0 < strlen( $data )         // Is empty string
       && $data != 'undefined'
       && preg_replace( [ '/<[^>]+>/', '/\s+/' ], ['',''], $data ) != '' // No non-tag / non-white space characters
@@ -188,17 +188,35 @@ function switch_non_empty_string( $data, $key = '') {
 }
 
 function switch_non_empty( $data, $key = '' ) {
-  if( $key != '' ) {
+  $k=$key;
+  while( $key != '' ) {
+    if( preg_match( '/(.*?)[.](.*)/', $key, $matches ) ) {
+      $key = $matches[1];
+      $part = $matches[2];
+    } else {
+      $part = '';
+    }
     if( is_array( $data ) && array_key_exists( $key, $data ) && isset( $data[$key] ) ) {
       $data = $data[$key];
     } elseif( is_object( $data ) && property_exists( $data, $key ) && isset( $data->$key ) ) {
       $data = $data->$key;
-    } else { // Element doesn't exist!
+    } else {
       return false;
     }
+    $key = $part;
   }
-  return isset( $data ) && is_array( $data ) ? switch_non_empty_array( $data ) : switch_non_empty_string( $data );
+  if( isset( $data ) && is_array( $data ) ) {
+    if( is_non_empty_array( $data ) ) {
+      return;
+    }
+    return false;
+  }
+  if( is_non_empty_string( $data ) ) {
+    return;
+  }
+  return false;
 }
+
 function f( $a ) {
   $b = array_map( function($x) { return $x == 'None' || $x == 'Other' ? lcfirst($x) : $x; }, $a );
   return array_combine( $b, $a );
@@ -337,6 +355,11 @@ const EXTRA_SETUP = [
   'image'            => [ 'save_format' => 'object', 'library' => 'all', 'preview_size' => 'large' ],
   'medium_editor'    => [
     'standard_buttons' => [ 'bold', 'italic', 'subscript', 'superscript', 'removeFormat' ],
+    'other_options'    => [ 'disableReturn', 'disableDoubleReturn', 'disableExtraSpaces' ],
+    'custom_buttons'   => [],
+  ],
+  'medium_editor_link'    => [
+    'standard_buttons' => [ 'bold', 'italic', 'subscript', 'superscript', 'removeFormat', 'anchor', ],
     'other_options'    => [ 'disableReturn', 'disableDoubleReturn', 'disableExtraSpaces' ],
     'custom_buttons'   => [],
   ],
@@ -606,12 +629,12 @@ class BaseThemeClass {
 <table class="form-table" role="presentation">
 <tbody>
   <tr>
-		<th>Current user role</th>
-		<td>
-			<p class="description">%s</p>
-		  </p>
-		</td>
-	</tr>
+    <th>Current user role</th>
+    <td>
+      <p class="description">%s</p>
+      </p>
+    </td>
+  </tr>
 <tbody>
 </table>', ucfirst( $roles ) );
   }
@@ -907,7 +930,11 @@ class BaseThemeClass {
   }
   function cr( $string ) {
   // Convert a human readable name into a valid variable name...
-    return strtolower( preg_replace( '/\s+/', '_', $string ) );
+    return strtolower( preg_replace( '/\W+/', '_', $string ) );
+  }
+  function lodash( $string ) {
+  // Convert a human readable name into a valid variable name...
+    return strtolower( preg_replace( '/\W+/', '-', $string ) );
   }
   function pl( $string ) {
   // Pluralize and english string...
@@ -964,6 +991,86 @@ class BaseThemeClass {
     $fg_defn['fields'] = $this->munge_fields( $prefix, $fields, $type, '' );
     register_field_group( $fg_defn );
     return $this;
+  }
+
+  // Function to add clone link to post category page
+  function add_clone_link( $type, $actions, $post, $user_type = 'edit_posts' ) {
+    // Only add link if use can edit posts && has clone set {may 
+    if( get_current_screen()->post_type === $type && current_user_can($user_type) ) {
+      $actions['duplicate'] = sprintf( '<a href="%s" title="Clone this item" rel="permalink">Clone</a>',
+        wp_nonce_url('admin.php?action=clone_post&post='. $post->ID, basename(__FILE__), 'duplicate_nonce' )
+      );
+    }
+    return $actions;
+  }  
+
+  // Handles cloning of post...
+  function clone_post( $type, $user_type = 'edit_posts' ) {
+    global $wpdb;
+
+    // First we check that the attributes in the URL are valid...
+    //
+    if( ! isset( $_GET['post']  )
+     && ! isset( $_POST['post'] )
+    ) {
+      return; // post id not passed in.
+    }
+    if( ! isset( $_REQUEST['action'] )
+     || 'clone_post' != $_REQUEST['action']
+    ) {
+      return; // action isn't clone post
+    }
+    if( ! isset( $_GET['duplicate_nonce'] )
+     || ! wp_verify_nonce( $_GET['duplicate_nonce'], basename( __FILE__ ) )
+    ) {
+      return; // Nonce is missing
+    }
+    $post = get_post( $post_id = absint( isset($_GET['post']) ? $_GET['post'] : $_POST['post'] ) );
+    if( $post->post_type != $type ) {
+      return; // Post is not of correct type...
+    }
+
+    // Now create the base post.. with the same attributes EXCEPT status,
+    // author and title (prefix clone)
+    $new_post_id = wp_insert_post([
+      'post_status'    => 'draft',
+      'post_author'    => wp_get_current_user()->ID,
+      'post_title'     => '[CLONE] '.$post->post_title,
+      'comment_status' => $post->comment_status,
+      'ping_status'    => $post->ping_status,
+      'post_content'   => $post->post_content,
+      'post_excerpt'   => $post->post_excerpt,
+      'post_name'      => $post->post_name,
+      'post_parent'    => $post->post_parent,
+      'post_password'  => $post->post_password,
+      'post_type'      => $post->post_type,
+      'to_ping'        => $post->to_ping,
+      'menu_order'     => $post->menu_order,
+    ]);
+
+    // Get all taxonomy terms associated with old post and duplicate them..
+    //
+    foreach ( get_object_taxonomies($post->post_type) as $taxonomy) {
+      wp_set_object_terms($new_post_id,
+        wp_get_object_terms($post_id, $taxonomy, array('fields' => 'slugs')),
+        $taxonomy, false
+      );
+    }
+
+    // Duplicate all the post meta attributes
+    //
+    $wpdb->query( sprintf('
+      insert into %s (post_id, meta_key, meta_value)
+      select %d, meta_key, meta_value
+        from %s
+       where post_id = %d and meta_key not in ("_wp_old_slug","_edit_lock")',
+      $wpdb->postmeta, $new_post_id, $wpdb->postmeta, $post_id
+    ));
+
+    // Finally redirect to the new edit page
+    //
+    wp_redirect( admin_url( 'post.php?action=edit&post=' . $new_post_id ) );
+    return;
   }
 
   function define_type( $name, $fields, $extra=[] ) {
@@ -1026,6 +1133,20 @@ class BaseThemeClass {
         $defn[ 'options'          ] = [ 'position' => 'normal' ];
         register_field_group( $defn );
       }
+    }
+
+    if( array_key_exists( 'clone', $extra ) ) {
+      $user_type = $extra['clone'] == 1 ? 'edit_posts' : $extra['clone'];
+      add_filter('post_row_actions', function($actions,$post ) use ($type,$user_type) {
+        $sc = get_current_screen();
+        if( $sc->post_type == $type ) {
+          return $this->add_clone_link($type,$actions,$post, $user_type);
+        }
+        return $actions;
+      }, 10, 2);
+      add_action( 'admin_action_clone_post', function() use ($type,$user_type) {
+        return $this->clone_post( $type, $user_type );
+      });
     }
 
     if( array_key_exists( 'title_template', $extra ) ) {
@@ -1506,6 +1627,7 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
   function remove_posts_admin() {
     add_action( 'admin_bar_menu',             array( $this, 'change_default_new_link' ), PHP_INT_MAX-1 );
     add_action( 'admin_menu',                 array( $this, 'remove_posts_sidebar' ) );
+    return $this;
   }
 
   function remove_comments_admin() {
@@ -1534,6 +1656,7 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
     // Change the title (to include default add action!)
     $new_content_node->title = preg_replace(
        '/(label">).*?</', '$1'.__('New').' ('.__($title).')<', $new_content_node->title );
+    $wp_admin_bar->remove_node( 'new-post' );
     $wp_admin_bar->remove_node('new-content');
     $wp_admin_bar->add_node( $new_content_node);
     $wp_admin_bar->remove_menu('comments');
@@ -1542,9 +1665,9 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
   }
 
 
-  // Remove posts sidebar entries...
   function remove_posts_sidebar() {
     $this->remove_sidebar_entry('edit.php');
+    
   }
   // Remove comments from post/page listings...
   function remove_comments_sidebar() {
@@ -1718,19 +1841,27 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
       'ucfirst'   => function( $s, $e='' ) { return ucfirst($s); },
       'hr'        => function( $s, $e='' ) { return $this->hr($s); },
       'cr'        => function( $s, $e='' ) { return $this->cr($s); },
+      'lodash'    => function( $s, $e='' ) { return $this->lodash($s); },
+      'bytes'      => function( $s, $e='-' ) {
+         if( $e=='' ) {
+           $e = $s > 8e8 ? 'G' : ($s > 8e5 ? 'M' : ( $s > 10000 ? 'K' : '' ));
+         }
+         return $e == 'G' ? sprintf( '0.1f GB', $s/1024/1024/1024 ) :
+              ( $e == 'M' ? sprintf( '0.1f MB', $s/1024/1024 ) : 
+              ( $e == 'K' ? sprintf( '%d KB', $s/1024 ) : $s.' bytes' )); },
       'uc'        => function( $s, $e='' ) { return strtoupper($s); },
       'lc'        => function( $s, $e='' ) { return strtolower($s); },
       'raw'       => function( $s, $e='' ) { return $s; },
       'date'      => function( $s, $e='' ) { return $s ? date_format( date_create( $s ), $this->date_format ) : ''; },
-      'enc'       => 'rawurlencode',
+      'enc'       => function( $s, $e='' ) { return rawurlencode( $s ); },
       'rand_enc'  => function( $s, $e='' ) { return $this->random_url_encode( $s ); },
-      'integer'   => 'intval',
+      'integer'   => function( $s, $e='' ) { return intval($s); },
       'boolean'   => function( $s, $e='' ) { return $s ? 'true' : 'false'; },
-      'shortcode' => 'do_shortcode',
+      'shortcode' => function( $s, $e='' ) { return do_shortcode($s); },
       'strip'     => function( $s, $e='' ) { return preg_replace( '/\s*\b(height|width)=["\']\d+["\']/', '', do_shortcode( $s ) ); },
       'spliturl'  => function( $s, $e='' ) { return preg_replace( '/([.\/])(?![.\/])/','\1<wbr/>', HTMLentities($s) ); },
       'rand_html' => function( $s, $e='' ) { return $this->random_html_entities( $s ); },
-      'html'      => 'HTMLentities',
+      'html'      => function( $s, $e='' ) { return HTMLentities($s); },
       'email'     => function( $s, $e='' ) { // embeds an email link into the page!
         if($s=='') {
           return '';
@@ -1934,7 +2065,7 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
   }
 
   protected function expand_string( $str, $data, $template_code ) {
-    $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-=@~.!\w+]+)(?::([^\]]+))?\]\]/',
+    $regexp = sprintf( '/\[\[(?:(%s|%s):)?([-#=@~.!\w+]+)(?::([^\]]+))?\]\]/',
        implode('|',array_keys( $this->array_methods )),
        implode('|',array_keys( $this->scalar_methods )) );
 
@@ -1985,7 +2116,16 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
     // being passed...
     if( array_key_exists( $template_code, $this->switchers ) ) {
       $function = $this->switchers[$template_code];
-      $t = is_string( $function ) ? switch_non_empty( $data, $function ) : $function( $data, $this );
+      if( is_array( $function ) ) {
+        $t = switch_non_empty( $data, $function[0] );
+        if( $t === false ) {
+          $t=$function[1];
+        }
+      } elseif( is_string( $function ) ) {
+        $t = switch_non_empty( $data, $function );
+      } else {
+        $t = $function( $data, $this );
+      }
       if( is_array( $t ) ) {
         return $this->expand_string( $t, $data, 'switch-'.$template_code );
       }
@@ -2043,6 +2183,11 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
                 $t_data = get_field( substr($key,1), $t_data->ID );
                 continue;
               }
+              if( substr( $key, 0, 1 ) === '#' ) { // Need to look this up in the database as not in the
+                                                   // object hash at the moment.
+                $t_data = get_post_meta( $t_data->ID, substr($key,1), true );
+                continue;
+              }
               if( $key == '@' ) {
                 $key = 'comment_count';
               }
@@ -2053,6 +2198,18 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
             }
             if( !is_array( $t_data ) ) {
               return ''; // No value in tree with that key!
+            }
+            if( isset($t_data['ID']) ) {
+              if( substr( $key, 0, 1 ) === '!' ) { // Need to look this up in the database as not in the
+                                                   // object hash at the moment.
+                 $t_data = get_field( substr($key,1), $t_data['ID'] );
+                continue;
+              }
+              if( substr( $key, 0, 1 ) === '#' ) { // Need to look this up in the database as not in the
+                                                   // object hash at the moment.
+                $t_data = get_post_meta( $t_data['ID'], substr($key,1), true );
+                continue;
+              }
             }
             // key doesn't exist in data structure or has null value...
             if( !array_key_exists( $key, $t_data ) ||
@@ -2652,7 +2809,6 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
 
   function proofpoint_protection_fixer( $post_id ) { 
     $_POST['acf'] = $this->_fix_proofpoint($_POST['acf']);
-    error_log(print_r( $_POST['acf'],1 ));
   }
 
   function add_script( $script, $js = '' ) {
