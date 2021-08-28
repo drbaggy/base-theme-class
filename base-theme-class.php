@@ -41,10 +41,7 @@
  * @wordpress-plugin
  * Plugin Name: Website Base Theme Class
  * Plugin URI:  https://jamessmith.me.uk/base-theme-class/
- * Description: Support functions to:
-                 * apply simple templates to acf pro data structures!
-                 * to fix annoying defaults in wordpress
-                 * to handle sanger publications
+ * Description: Support functions to: apply simple templates to acf pro data structures!; to fix annoying defaults in wordpress; to handle sanger publications [Sanger plugin]
  * Version:     0.5.3
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
@@ -76,6 +73,9 @@
  * Version 0.0.2 - Initial import
 
  */
+
+const WP_COLUMNS = [
+ 'ID', 'post_author', 'post_date', 'post_date_gmt', 'post_content', 'post_title', 'post_excerpt', 'post_status', 'comment_status', 'ping_status', 'post_password', 'post_name', 'to_ping', 'pinged', 'post_modified', 'post_modified_gmt', 'post_content_filtered', 'post_pa    rent', 'guid', 'menu_order', 'post_type', 'post_mime_type', 'comment_count', 'filter' ];
 
   const FILTER_LIST = [
     'png' => [ 'png' => 'image/png' ],
@@ -416,6 +416,9 @@ class BaseThemeClass {
   protected $scripts;
   protected $sequence;
   protected $is_simply_static;
+
+  private $tmp_data;
+
   public function type_name( $code ) {
     return $this->custom_types[$code]['name'];
   }
@@ -1154,11 +1157,15 @@ class BaseThemeClass {
         $sc = get_current_screen();
         if( $sc->post_type == $type ) {
           echo '<script>window.hide_title = true;</script>';
-          error_log($type.' == '. $sc->post_type);
         }
-      });
+      } );
       add_filter( 'wp_insert_post_data', function( $post_data ) use ($type,$prefix,$extra) {
         if( $post_data[ 'post_type' ] === $type && array_key_exists( 'acf', $_POST ) ) {
+          if(is_callable( $extra['title_template'] ) ) {
+            $fn = $extra['title_template'];
+            $post_data[ 'post_title'] = $fn( $_POST['acf'] );
+          } else {
+
           $post_data[ 'post_title' ] = trim(preg_replace( '/\s+/', ' ',
             preg_replace_callback( '/\[\[([.\w]+)\]\]/',
               function( $m ) use ( $prefix ) {
@@ -1180,6 +1187,7 @@ class BaseThemeClass {
               $extra['title_template']
             )
           ));
+          }
           $post_data[ 'post_name' ] = sanitize_title( $post_data[ 'post_title'] );
         }
         return $post_data;
@@ -1202,8 +1210,9 @@ class BaseThemeClass {
       'show_ui'           => true,
       'show_admin_column' => true,
       'show_in_menu'      => true,
-      'rewrite'           => array( 'slug' => $code ),
+      'rewrite'           => [ 'slug' => $code ],
       'heirarchical'      => isset( $extra['hierarchical'] ) ? $extra['hierarchical'] : false,
+      'supports'          => [ 'title', 'revisions' ],
       'labels'            => [
         'name'              => __($plural),
         'singular_name'     => __($name),
@@ -2195,6 +2204,10 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
                 $t_data = $t_data->$key;
                 continue;
               }
+              if( method_exists( $t_data, $key ) ) {
+                $t_data = $t_data->$key();
+                continue;
+              }
             }
             if( !is_array( $t_data ) ) {
               return ''; // No value in tree with that key!
@@ -2324,6 +2337,11 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
     if( !is_array( $meta ) ) {
       $meta = [];
     }
+    foreach( (array) $post as $k => $v ) {
+      if( !in_array($k,WP_COLUMNS) ) {
+        $meta[$k] = $v;
+      }
+    }
     $return = array_merge( $meta, [
       'ID'           => $post->ID,
       'post_title'   => $post->post_title,
@@ -2338,16 +2356,29 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
     return $return;
   }
 
-  function get_entries( $type, $extra = array() ) {
-    $get_posts = new WP_Query;
+  function get_entries( $type, $extra = array(), $clauses = [] ) {
     $pars = [ 'posts_per_page'=>-1 ];
     if( $type != '' ) {
       $pars[ 'post_type' ] = $type;
     }
-    
+    if( sizeof($clauses) ) {
+      $this->tmp_data = $clauses;
+      add_filter( 'posts_clauses', [ $this, 'extra_clauses' ], 10, 2 );
+    }
+    $get_posts = new WP_Query;
     $entries = $get_posts->query( array_merge( $pars, $extra ) );
-
+    if( sizeof($clauses) ) {
+      $this->tmp_data = '';
+      remove_filter( 'posts_clauses', [ $this, 'extra_clauses'] );
+    }
     return array_map( function( $_ ) { return $this->process_entry($_); }, $entries );
+  }
+
+  function extra_clauses( $clauses, $q ) {
+    foreach( $this->tmp_data as $k => $v ) {
+      $clauses[$k] .= $v;
+    }
+    return $clauses;
   }
 
   function get_entries_light( $type, $extra = array(), $keys = array() ) {
