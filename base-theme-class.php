@@ -1800,9 +1800,9 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
       return '';
     }
     $res = array_map(function($row) use ($extra) {
-             $tn =  $this->template_name( $extra, $row );
-             return $this->expand_template( $tn, $row );
-           }, $t_data );
+      $tn =  $this->template_name( $extra, $row );
+      return $this->expand_template( $tn, $row );
+    }, $t_data );
     if( $sep_last != '' && sizeof($res) > 1 ) {
       $last = array_pop( $res );
       return implode( $sep, $res ).$sep_last.$last;
