@@ -150,7 +150,7 @@ $(function(){
     if (t === '...') {
       return;
     }
-    $(this).closest('.box-pagination').find('input').val(
+    $(this).closest('.list-container').find('input[data-filter="page"]').val(
         t === '«'                     ? 0
       : t === '»'                     ? 10000000
       : $(this).text().match(/^\d+$/) ? (parseInt($(this).text(),10) - 1)
