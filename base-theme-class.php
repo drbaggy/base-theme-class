@@ -1163,7 +1163,7 @@ class BaseThemeClass {
           echo '<script>window.hide_title = true;</script>';
         }
       } );
-      add_filter( 'wp_insert_post_data', function( $post_data ) use ($type,$prefix,$extra) {
+      add_filter( 'wp_insert_post_data', function( $post_data, $post_arr ) use ($type,$prefix,$extra) {
         if( $post_data[ 'post_type' ] === $type && array_key_exists( 'acf', $_POST ) ) {
           if(is_callable( $extra['title_template'] ) ) {
             $fn = $extra['title_template'];
@@ -1193,9 +1193,21 @@ class BaseThemeClass {
           ));
           }
           $post_data[ 'post_name' ] = sanitize_title( $post_data[ 'post_title'] );
+          // Avoid duplicate post_names 
+          $N = sanitize_title( $post_data[ 'post_title'] );
+          if( ! preg_match( '/^'.$N.'-\d+$/', $post_data['post_title'] ) ) {
+            $posts = array_filter(
+              get_posts( [ 'name' => $N, 'post_type' => $type, 'posts_per_page' => -1, 'post_status' => 'publish' ] ),
+              function( $_ ) use ( $post_arr ) { return $_->ID != $post_arr['ID'];}
+            );
+            if(sizeof($posts) ) {
+              $N .= '-'.$post_arr['ID'];
+            }
+            $post_data[ 'post_name' ] = $N;
+          }
         }
         return $post_data;
-      } );
+      }, 10, 2 );
     }
     return $this;
   }
