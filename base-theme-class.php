@@ -1192,7 +1192,6 @@ class BaseThemeClass {
             )
           ));
           }
-          $post_data[ 'post_name' ] = sanitize_title( $post_data[ 'post_title'] );
           // Avoid duplicate post_names 
           $N = sanitize_title( $post_data[ 'post_title'] );
           if( ! preg_match( '/^'.$N.'-\d+$/', $post_data['post_title'] ) ) {
