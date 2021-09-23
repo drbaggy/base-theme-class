@@ -521,6 +521,38 @@ class BaseThemeClass {
     return $base_url;
   }
 
+  function initialise_boilerplate_codes() {
+    $self->define_type( 'Boilerplate text', BOILERPLATE_FIELDS,
+      [ 'title_template' => '[[name]]', 'icon' => 'clipboard',
+        'prefix' => 'bp', 'add' => 'administrator',
+        'position' => 'settings' ] );
+
+    // a shortcode so you can embed the boilerplate wherever
+    // you need to in any WYSIWYG fields.
+    //
+    // Short code is [ boilerplate {boilerplate-name} ]
+
+    add_shortcode( 'boilerplate', function( $atts ) {
+      return $self->get_text( implode( ' ', $atts ));
+    } );
+
+    // Define a template scalar method so that you can use
+    //
+    //  [[boilerplate:-:{boilerplate-name}]]
+    //
+    // in templates
+    $self->add_scalar_method( 'boilerplate', function( $s, $e ) {
+      return $this->get_text( $s );
+    });
+  }
+  function get_text( $code ) {
+    $t = $this->self->get_entries( 'boilerplate_text',
+      [ 'meta_key' => 'name', 'meta_value' => $code ]
+    );
+    return sizeof($t)
+         ? $t[0]['content']
+         : "*** Undefined boilerplate '$code' ***";
+  }
   function initialise_qr_codes() {
     register_setting( 'qr_code', 'qr_code_base_url',     [ 'default' => '' ] );
     if( is_admin() ) {
