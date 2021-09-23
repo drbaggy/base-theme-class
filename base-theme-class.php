@@ -522,7 +522,7 @@ class BaseThemeClass {
   }
 
   function initialise_boilerplate_codes() {
-    $self->define_type( 'Boilerplate text', BOILERPLATE_FIELDS,
+    $this->define_type( 'Boilerplate text', BOILERPLATE_FIELDS,
       [ 'title_template' => '[[name]]', 'icon' => 'clipboard',
         'prefix' => 'bp', 'add' => 'administrator',
         'position' => 'settings' ] );
@@ -533,7 +533,7 @@ class BaseThemeClass {
     // Short code is [ boilerplate {boilerplate-name} ]
 
     add_shortcode( 'boilerplate', function( $atts ) {
-      return $self->get_text( implode( ' ', $atts ));
+      return $this->get_text( implode( ' ', $atts ));
     } );
 
     // Define a template scalar method so that you can use
@@ -541,10 +541,10 @@ class BaseThemeClass {
     //  [[boilerplate:-:{boilerplate-name}]]
     //
     // in templates
-    $self->add_scalar_method( 'boilerplate', function( $s, $e ) {
+    $this->add_scalar_method( 'boilerplate', function( $s, $e ) {
       return $this->get_text( $s );
     });
-    return $self;
+    return $this;
   }
   function get_text( $code ) {
     $t = $this->self->get_entries( 'boilerplate_text',
