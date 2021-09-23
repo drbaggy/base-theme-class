@@ -544,6 +544,7 @@ class BaseThemeClass {
     $self->add_scalar_method( 'boilerplate', function( $s, $e ) {
       return $this->get_text( $s );
     });
+    return $self;
   }
   function get_text( $code ) {
     $t = $this->self->get_entries( 'boilerplate_text',
