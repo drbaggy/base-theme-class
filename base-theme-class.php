@@ -74,6 +74,11 @@
 
  */
 
+define( 'BOILERPLATE_FIELDS', [
+  'Name'      => [ 'type' => 'text' ],
+  'Content'   => [ 'type' => 'wysiwyg' ],
+]);
+
 const WP_COLUMNS = [
   'ID', 'post_author', 'post_date', 'post_date_gmt', 'post_content', 'post_title', 'post_excerpt',
   'post_status', 'comment_status', 'ping_status', 'post_password', 'post_name', 'to_ping', 'pinged',
