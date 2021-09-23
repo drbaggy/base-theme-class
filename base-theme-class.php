@@ -552,7 +552,7 @@ class BaseThemeClass {
     return $this;
   }
   function get_text( $code ) {
-    $t = $this->self->get_entries( 'boilerplate_text',
+    $t = $this->get_entries( 'boilerplate_text',
       [ 'meta_key' => 'name', 'meta_value' => $code ]
     );
     return sizeof($t)
