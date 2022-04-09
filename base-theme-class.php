@@ -436,17 +436,16 @@ class BaseThemeClass {
     $base_url = wp_upload_dir()['baseurl'];
     global $wpdb;
     // Get array of post IDs of given type....
-    $ptmp = $wpdb->dbh->query(
+    $posts = [];
+    foreach( $wpdb->dbh->query(
       'select ID from wp_posts
         where post_type="'.$object_type.'"
           and post_status="publish"'
-    )->fetch_all();
-    // Get permalink for each post and to each post object...
-    $posts = [];
-    foreach( $ptmp as $p ) {
+    )->fetch_all() as $p ) {
+      // Get permalink for each post and to each post object...
       $posts[ $p[0] ] = [ 'url' => get_permalink($p[0]) ];
     }
-    // Get selected meta data for each post..... and it to post hash [ note we map to a consistent space ]
+    // Get selected meta data for each post..... and add it to post hash [ note we map to a consistent space ]
     foreach( $wpdb->dbh->query('
         select post_id,meta_key,meta_value
           from wp_postmeta where post_id in ('.implode(',',array_keys($posts)).') and
