@@ -428,24 +428,49 @@ class BaseThemeClass {
   }
 
   public function simple_feed( $object_type, $mapper, $image_size = '' ) {
+    $base_url = wp_upload_dir()['baseurl'];
     global $wpdb;
+    // Get array of post IDs of given type....
     $ptmp = $wpdb->dbh->query(
       'select ID from wp_posts
         where post_type="'.$object_type.'"
           and post_status="publish"'
     )->fetch_all();
+    // Get permalink for each post and to each post object...
     $posts = [];
     foreach( $ptmp as $p ) {
       $posts[ $p[0] ] = [ 'url' => get_permalink($p[0]) ];
-      $t = $wpdb->dbh->query('
-        select meta_key,meta_value
-          from wp_postmeta where post_id = '.$p[0].' and
+    }
+    // Get selected meta data for each post..... and it to post hash [ note we map to a consistent space ]
+    foreach( $wpdb->dbh->query('
+        select post_id,meta_key,meta_value
+          from wp_postmeta where post_id in ('.implode(',',array_keys($posts)).') and
                meta_key in ("'.implode('","',array_keys($mapper)).'")'
-      )->fetch_all();
-      foreach($t as $r) {
-        $posts[$p[0]][$mapper[$r[0]]] = $r[1];
+      )->fetch_all() as $r ) {
+        $posts[$r[0]][$mapper[$r[1]]] = $r[2];
+    }
+    // Get image data for each of these posts (specifically URL of each image - possibly one of the "resized" versions)
+    $image_hash = [];
+    foreach(  $wpdb->dbh->query( '
+      select post_id,
+             group_concat(if(meta_key="_wp_attached_file",meta_value,NULL) separator "")       as file,
+             group_concat(if(meta_key="_wp_attachment_metadata",meta_value,NULL) separator "") as meta
+        from wp_postmeta where post_id in ( '.implode(',',
+      array_map(function($r) { return $r['image_id']; }, array_filter( $posts, function($r) { return isset( $r['image_id'] ) && $r['image_id'] !=''; } ) ) ).
+      '  )  group by post_id'
+    ) as $r ) {
+      $image_hash[$r['post_id']]=$r;
+    }
+    // Attach data to posts..
+    foreach( $posts as &$r ) {
+      if(isset($r['image_id']) && isset( $image_hash[$r['image_id']] ) ) {
+        $t = $image_hash[$r['image_id']];
+        if( isset( $t['meta'] ) && isset( $t['meta'][$image_size] ) ) {
+          $r['image_url'] = $base_url.'/'.$t['meta'][$image_size];
+        } elseif( isset( $t['file']) ) {
+          $r['image_url'] = $base_url.'/'.$t['file'];
+        }
       }
-      $posts[$p[0]]['image_url'] = wp_get_attachment_image_src($posts[$p[0]]['image_id'],$image_size)[0];
     }
     return $posts;
   }
