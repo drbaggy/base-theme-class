@@ -42,7 +42,7 @@
  * Plugin Name: Website Base Theme Class
  * Plugin URI:  https://jamessmith.me.uk/base-theme-class/
  * Description: Support functions to: apply simple templates to acf pro data structures!; to fix annoying defaults in wordpress; to handle sanger publications [Sanger plugin]
- * Version:     0.5.3
+ * Version:     0.5.4
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
@@ -73,6 +73,11 @@
  * Version 0.0.2 - Initial import
 
  */
+
+define( 'BOILERPLATE_FIELDS', [
+  'Name'      => [ 'type' => 'text' ],
+  'Content'   => [ 'type' => 'wysiwyg' ],
+]);
 
 const WP_COLUMNS = [
   'ID', 'post_author', 'post_date', 'post_date_gmt', 'post_content', 'post_title', 'post_excerpt',
@@ -546,6 +551,39 @@ class BaseThemeClass {
     return $base_url;
   }
 
+  function initialise_boilerplate_codes() {
+    $this->define_type( 'Boilerplate text', BOILERPLATE_FIELDS,
+      [ 'title_template' => '[[name]]', 'icon' => 'clipboard',
+        'prefix' => 'bp', 'add' => 'administrator',
+        'position' => 'settings' ] );
+
+    // a shortcode so you can embed the boilerplate wherever
+    // you need to in any WYSIWYG fields.
+    //
+    // Short code is [ boilerplate {boilerplate-name} ]
+
+    add_shortcode( 'boilerplate', function( $atts ) {
+      return $this->get_text( implode( ' ', $atts ));
+    } );
+
+    // Define a template scalar method so that you can use
+    //
+    //  [[boilerplate:-:{boilerplate-name}]]
+    //
+    // in templates
+    $this->add_scalar_method( 'boilerplate', function( $s, $e ) {
+      return $this->get_text( $s );
+    });
+    return $this;
+  }
+  function get_text( $code ) {
+    $t = $this->get_entries( 'boilerplate_text',
+      [ 'meta_key' => 'name', 'meta_value' => $code ]
+    );
+    return sizeof($t)
+         ? $t[0]['content']
+         : "*** Undefined boilerplate '$code' ***";
+  }
   function initialise_qr_codes() {
     register_setting( 'qr_code', 'qr_code_base_url',     [ 'default' => '' ] );
     if( is_admin() ) {
@@ -1188,7 +1226,7 @@ class BaseThemeClass {
           echo '<script>window.hide_title = true;</script>';
         }
       } );
-      add_filter( 'wp_insert_post_data', function( $post_data ) use ($type,$prefix,$extra) {
+      add_filter( 'wp_insert_post_data', function( $post_data, $post_arr ) use ($type,$prefix,$extra) {
         if( $post_data[ 'post_type' ] === $type && array_key_exists( 'acf', $_POST ) ) {
           if(is_callable( $extra['title_template'] ) ) {
             $fn = $extra['title_template'];
@@ -1217,10 +1255,21 @@ class BaseThemeClass {
             )
           ));
           }
-          $post_data[ 'post_name' ] = sanitize_title( $post_data[ 'post_title'] );
+          // Avoid duplicate post_names 
+          $N = sanitize_title( $post_data[ 'post_title'] );
+          if( ! preg_match( '/^'.$N.'-\d+$/', $post_data['post_title'] ) ) {
+            $posts = array_filter(
+              get_posts( [ 'name' => $N, 'post_type' => $type, 'posts_per_page' => -1, 'post_status' => 'publish' ] ),
+              function( $_ ) use ( $post_arr ) { return $_->ID != $post_arr['ID'];}
+            );
+            if(sizeof($posts) ) {
+              $N .= '-'.$post_arr['ID'];
+            }
+            $post_data[ 'post_name' ] = $N;
+          }
         }
         return $post_data;
-      } );
+      }, 10, 2 );
     }
     return $this;
   }
