@@ -432,7 +432,7 @@ class BaseThemeClass {
     return $this->custom_types[$code]['name'];
   }
 
-  public function simple_feed( $object_type, $mapper = '', $image_size = '' ) {
+  public function simple_feed( $object_type, $mapper, $prefix='', $image_size = '' ) {
     $base_url = wp_upload_dir()['baseurl'];
     global $wpdb;
     // Get array of post IDs of given type....
@@ -443,7 +443,7 @@ class BaseThemeClass {
           and post_status="publish"'
     )->fetch_all() as $p ) {
       // Get permalink for each post and to each post object...
-      $posts[ $p[0] ] = [ 'uid' => ( $prefix==''?$p[0]:"$prefix-$p[0]", 'url' => get_permalink($p[0]) ];
+      $posts[ $p[0] ] = [ 'uid' => $prefix==''?$p[0]:"$prefix-$p[0]", 'url' => get_permalink($p[0]) ];
     }
     // Get selected meta data for each post..... and add it to post hash [ note we map to a consistent space ]
     foreach( $wpdb->dbh->query('
