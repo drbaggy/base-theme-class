@@ -1391,6 +1391,7 @@ class BaseThemeClass {
     $plural     = isset( $def['plural'] ) ? $def['plural'] : $this->pl( $name );
     $code       = isset( $def['code']   ) ? $def['code']   : $this->cr( $name );
     $lc         = strtolower($name);
+    $slug       = isset( $def['slug_plural'] ) && $def['slug_plural'] ? $this->cr($plural) : $code;
 
     $new_item   = __("New $lc");
     $edit_item  = __("Edit $lc");
@@ -1410,6 +1411,7 @@ class BaseThemeClass {
       'public'       => true,
       'has_archive'  => true,
       'menu_icon'    => 'dashicons-'.$icon,
+      'rewrite'      => [ 'slug' => $slug, 'with_front' => false ],
       'heirarchical' => isset( $def['hierarchical'] ) ? $def['hierarchical'] : false,
       'labels'       => [
         'add_new'          => $new_item,
