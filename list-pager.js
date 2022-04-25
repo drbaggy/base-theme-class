@@ -267,6 +267,13 @@ $(function(){
     }
     function update_history( ky, flt ) {
       var t = {};
+      $.each(flt,function(k,v) {
+        if(!v || v === '0') { delete flt[k]; }
+      });
+      if(JSON.stringify(flt)==='{}') {
+        document.location.replace( '#' );
+        return;
+      }
       t[ky] = flt;
       var s = '#'+JSON.stringify(t);
       if( s === '#{"-":{}}' ) {
