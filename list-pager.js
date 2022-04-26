@@ -267,15 +267,16 @@ $(function(){
     }
     function update_history( ky, flt ) {
       var t = {};
-      $.each(flt,function(k,v) {
-        if(!v || v === '0') { delete flt[k]; }
+      var tf = JSON.parse(JSON.stringify(flt));
+      $.each(tf,function(k,v) {
+        if(!v || v === '0') { delete tf[k]; }
       });
-      if(JSON.stringify(flt)==='{}') {
+      if(JSON.stringify(tf)==='{}') {
         document.location.replace( '#' );
         return;
       }
-      t[ky] = flt;
-      var s = '#'+JSON.stringify(t);
+      t[ky] = tf;
+      var s = '#'+JSON.stringify(tf);
       if( s === '#{"-":{}}' ) {
         if( document.location.hash.match(/^#{/) ) {
           document.location.replace( '#' );
