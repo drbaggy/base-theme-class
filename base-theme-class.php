@@ -437,10 +437,13 @@ class BaseThemeClass {
     global $wpdb;
     // Get array of post IDs of given type....
     $posts = [];
+    $clause = is_array( $object_type )
+            ? ' in ("'.implode('","',$object_type).'")'
+            : ' = "'.$object_type.'"'
+            ;
     foreach( $wpdb->dbh->query(
       'select ID from wp_posts
-        where post_type="'.$object_type.'"
-          and post_status="publish"'
+        where post_status = "publish" and post_type'.$clause
     )->fetch_all() as $p ) {
       // Get permalink for each post and to each post object...
       $posts[ $p[0] ] = [ 'uid' => $prefix==''?$p[0]:"$prefix-$p[0]", 'url' => get_permalink($p[0]) ];
