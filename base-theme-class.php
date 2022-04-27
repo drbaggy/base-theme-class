@@ -442,11 +442,18 @@ class BaseThemeClass {
             : ' = "'.$object_type.'"'
             ;
     foreach( $wpdb->dbh->query(
-      'select ID from wp_posts
-        where post_status = "publish" and post_type'.$clause
+      'select ID, post_type, post_modified, post_date,
+         from wp_posts
+        where post_status = "publish" and post_type'.$clause.'
+        order by post_modified'
     )->fetch_all() as $p ) {
       // Get permalink for each post and to each post object...
-      $posts[ $p[0] ] = [ 'uid' => $prefix==''?$p[0]:"$prefix-$p[0]", 'url' => get_permalink($p[0]) ];
+      $posts[ $p[0] ] = [ 'uid'    => $prefix==''?$p[0]:"$prefix-$p[0]",
+                          'url'    => get_permalink($p[0]),
+                          'type'   => $p[1],
+                          'update' => $p[2],
+                          'create' => $p[3],
+                        ];
     }
     // Get selected meta data for each post..... and add it to post hash [ note we map to a consistent space ]
     foreach( $wpdb->dbh->query('
