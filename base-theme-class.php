@@ -442,7 +442,7 @@ class BaseThemeClass {
             : ' = "'.$object_type.'"'
             ;
     foreach( $wpdb->dbh->query(
-      'select ID, post_type, post_modified, post_date,
+      'select ID, post_type, post_modified, post_date
          from wp_posts
         where post_status = "publish" and post_type'.$clause.'
         order by post_modified'
