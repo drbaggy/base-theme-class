@@ -936,7 +936,6 @@ class BaseThemeClass {
   }
 
   public function theme_setup() {
-    add_theme_support( 'html5' );        // Make it HTML 5 compliant
     add_theme_support( 'title-tag' );
   }
 
@@ -1934,35 +1933,36 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
       }
     ];
     $this->scalar_methods = [
-      'html_with_br'  => function( $s, $e='' ) { return implode( "<br />\n", array_map( 'HTMLentities', preg_split( '/\r?\n/', $s ) ) ); },
-      'post_url_link' => function( $s, $e='' ) { return HTMLentities(get_permalink( $s )); },
-      'post_url_raw'  => function( $s, $e='' ) { return get_permalink( $s ); },
-      'ucfirst'   => function( $s, $e='' ) { return ucfirst($s); },
-      'hr'        => function( $s, $e='' ) { return $this->hr($s); },
-      'cr'        => function( $s, $e='' ) { return $this->cr($s); },
-      'lodash'    => function( $s, $e='' ) { return $this->lodash($s); },
-      'bytes'      => function( $s, $e='-' ) {
+      'raw'           => function( $s, $e=''  ) { return $s; },
+      'html_with_br'  => function( $s, $e=''  ) { return implode( "<br />\n", array_map( 'HTMLentities', preg_split( '/\r?\n/', $s ) ) ); },
+      'post_url_link' => function( $s, $e=''  ) { return HTMLentities(get_permalink( $s )); },
+      'post_url_raw'  => function( $s, $e=''  ) { return get_permalink( $s ); },
+      'ucfirst'       => function( $s, $e=''  ) { return ucfirst($s); },
+      'hr'            => function( $s, $e=''  ) { return $this->hr($s); },
+      'cr'            => function( $s, $e=''  ) { return $this->cr($s); },
+      'uc'            => function( $s, $e=''  ) { return strtoupper($s); },
+      'lc'            => function( $s, $e=''  ) { return strtolower($s); },
+      'lodash'        => function( $s, $e=''  ) { return $this->lodash($s); },
+      'striptags'     => function( $s, $e=''  ) { return strip_tags($s); },
+      'date'          => function( $s, $e=''  ) { return $s ? date_format( date_create( $s ), $this->date_format ) : ''; },
+      'enc'           => function( $s, $e=''  ) { return rawurlencode( $s ); },
+      'rand_enc'      => function( $s, $e=''  ) { return $this->random_url_encode( $s ); },
+      'integer'       => function( $s, $e=''  ) { return intval($s); },
+      'boolean'       => function( $s, $e=''  ) { return $s ? 'true' : 'false'; },
+      'shortcode'     => function( $s, $e=''  ) { return do_shortcode($s); },
+      'strip'         => function( $s, $e=''  ) { return preg_replace( '/\s*\b(height|width)=["\']\d+["\']/', '', do_shortcode( $s ) ); },
+      'spliturl'      => function( $s, $e=''  ) { return preg_replace( '/([.\/])(?![.\/])/','\1<wbr/>', HTMLentities($s) ); },
+      'rand_html'     => function( $s, $e=''  ) { return $this->random_html_entities( $s ); },
+      'html'          => function( $s, $e=''  ) { return HTMLentities($s); },
+      'bytes'         => function( $s, $e='-' ) {
          if( $e=='' ) {
            $e = $s > 8e8 ? 'G' : ($s > 8e5 ? 'M' : ( $s > 10000 ? 'K' : '' ));
          }
          return $e == 'G' ? sprintf( '0.1f GB', $s/1024/1024/1024 ) :
               ( $e == 'M' ? sprintf( '0.1f MB', $s/1024/1024 ) : 
               ( $e == 'K' ? sprintf( '%d KB', $s/1024 ) : $s.' bytes' )); },
-      'uc'        => function( $s, $e='' ) { return strtoupper($s); },
-      'lc'        => function( $s, $e='' ) { return strtolower($s); },
-      'raw'       => function( $s, $e='' ) { return $s; },
       'para'      => function( $s, $e='' ) { return preg_match( '/\s+<p>/', $s ) ? $s : ( preg_match( '/(.*?)<p>/', $s ) ?
                                                     preg_replace( '/(.*?)<p>/', '<p>\1</p><p>', $s ) : "<p>$s</p>" ); },
-      'date'      => function( $s, $e='' ) { return $s ? date_format( date_create( $s ), $this->date_format ) : ''; },
-      'enc'       => function( $s, $e='' ) { return rawurlencode( $s ); },
-      'rand_enc'  => function( $s, $e='' ) { return $this->random_url_encode( $s ); },
-      'integer'   => function( $s, $e='' ) { return intval($s); },
-      'boolean'   => function( $s, $e='' ) { return $s ? 'true' : 'false'; },
-      'shortcode' => function( $s, $e='' ) { return do_shortcode($s); },
-      'strip'     => function( $s, $e='' ) { return preg_replace( '/\s*\b(height|width)=["\']\d+["\']/', '', do_shortcode( $s ) ); },
-      'spliturl'  => function( $s, $e='' ) { return preg_replace( '/([.\/])(?![.\/])/','\1<wbr/>', HTMLentities($s) ); },
-      'rand_html' => function( $s, $e='' ) { return $this->random_html_entities( $s ); },
-      'html'      => function( $s, $e='' ) { return HTMLentities($s); },
       'email'     => function( $s, $e='' ) { // embeds an email link into the page!
         if($s=='') {
           return '';
