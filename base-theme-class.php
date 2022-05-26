@@ -42,7 +42,7 @@
  * Plugin Name: Website Base Theme Class
  * Plugin URI:  https://jamessmith.me.uk/base-theme-class/
  * Description: Support functions to: apply simple templates to acf pro data structures!; to fix annoying defaults in wordpress; to handle sanger publications [Sanger plugin]
- * Version:     0.5.5
+ * Version:     0.5.4
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
@@ -936,7 +936,6 @@ class BaseThemeClass {
   }
 
   public function theme_setup() {
-    //add_theme_support( 'html5' );        // mw8 removed
     add_theme_support( 'title-tag' );
   }
 
@@ -1235,52 +1234,53 @@ class BaseThemeClass {
           echo '<script>window.hide_title = true;</script>';
         }
       } );
-      add_filter( 'wp_insert_post_data', function( $post_data, $post_arr ) use ($type,$prefix,$extra) {
+      add_filter( 'wp_insert_post_data', function( $post_data, $post_arr ) use ( $type, $prefix, $extra ) {
         if( $post_data[ 'post_type' ] === $type && array_key_exists( 'acf', $_POST ) ) {
-          if(is_callable( $extra['title_template'] ) ) {
-            $fn = $extra['title_template'];
-            $post_data[ 'post_title'] = $fn( $_POST['acf'] );
-          } else {
-
-          $post_data[ 'post_title' ] = trim(preg_replace( '/\s+/', ' ',
-            preg_replace_callback( '/\[\[([.\w]+)\]\]/',
-              function( $m ) use ( $prefix ) {
-                $t = $_POST['acf'];
-                foreach( explode('.',$m[1]) as $k ) {
-                  if( is_object( $t ) ) {
-                    $t = $t->$k;
-                  } else {
-                    $p = "field_${prefix}$k";
-                    if( array_key_exists( $p, $t ) ) {
-                      $t = $t[$p];
-                    } else {
-                      $t = $t[$k];
-                    }
-                  }
-                }
-                return $t;
-              },
-              $extra['title_template']
-            )
-          ));
-          }
-          // Avoid duplicate post_names 
-          $N = sanitize_title( $post_data[ 'post_title'] );
-          if( ! preg_match( '/^'.$N.'-\d+$/', $post_data['post_title'] ) ) {
+          $post_data[ 'post_title' ] = $this->__title_template( $extra['title_template'], $prefix );
+          $t_name = array_key_exists( 'slug_template', $extra ) ? $this->__title_template( $extra['slug_template'], $prefix ) : '';
+          $t_name = sanitize_title( $t_name == '' ? $post_data['post_title'] : $t_name );
+          if( ! preg_match( '/^'.$t_name.'-\d+$/', $post_data['post_title'] ) ) {
             $posts = array_filter(
-              get_posts( [ 'name' => $N, 'post_type' => $type, 'posts_per_page' => -1, 'post_status' => 'publish' ] ),
+              get_posts( [ 'name' => $t_name, 'post_type' => $type, 'posts_per_page' => -1, 'post_status' => 'publish' ] ),
               function( $_ ) use ( $post_arr ) { return $_->ID != $post_arr['ID'];}
             );
             if(sizeof($posts) ) {
-              $N .= '-'.$post_arr['ID'];
+              $t_name .= '-'.$post_arr['ID'];
             }
-            $post_data[ 'post_name' ] = $N;
           }
+          $post_data[ 'post_name' ] = $t_name;
         }
         return $post_data;
       }, 10, 2 );
     }
     return $this;
+  }
+
+  function __title_template( $template, $prefix ) {
+    if( is_callable( $template ) ) {
+      return $template( $_POST['acf'] );
+    }
+    return trim(preg_replace( '/\s+/', ' ',
+      preg_replace_callback( '/\[\[([.\w]+)\]\]/',
+        function( $m ) use ( $prefix ) {
+          $t = $_POST['acf'];
+          foreach( explode('.',$m[1]) as $k ) {
+            if( is_object( $t ) ) {
+              $t = $t->$k;
+            } else {
+              $p = "field_${prefix}$k";
+              if( array_key_exists( $p, $t ) ) {
+                $t = $t[$p];
+              } else {
+                $t = $t[$k];
+              }
+            }
+          }
+          return $t;
+        },
+        $template
+      )
+    ));
   }
 
   function add_taxonomy( $name, $object_types, $extra = [] ) {
@@ -1933,33 +1933,36 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
       }
     ];
     $this->scalar_methods = [
-      'html_with_br'  => function( $s, $e='' ) { return implode( "<br />\n", array_map( 'HTMLentities', preg_split( '/\r?\n/', $s ) ) ); },
-      'post_url_link' => function( $s, $e='' ) { return HTMLentities(get_permalink( $s )); },
-      'post_url_raw'  => function( $s, $e='' ) { return get_permalink( $s ); },
-      'ucfirst'   => function( $s, $e='' ) { return ucfirst($s); },
-      'hr'        => function( $s, $e='' ) { return $this->hr($s); },
-      'cr'        => function( $s, $e='' ) { return $this->cr($s); },
-      'lodash'    => function( $s, $e='' ) { return $this->lodash($s); },
-      'bytes'      => function( $s, $e='-' ) {
+      'raw'           => function( $s, $e=''  ) { return $s; },
+      'html_with_br'  => function( $s, $e=''  ) { return implode( "<br />\n", array_map( 'HTMLentities', preg_split( '/\r?\n/', $s ) ) ); },
+      'post_url_link' => function( $s, $e=''  ) { return HTMLentities(get_permalink( $s )); },
+      'post_url_raw'  => function( $s, $e=''  ) { return get_permalink( $s ); },
+      'ucfirst'       => function( $s, $e=''  ) { return ucfirst($s); },
+      'hr'            => function( $s, $e=''  ) { return $this->hr($s); },
+      'cr'            => function( $s, $e=''  ) { return $this->cr($s); },
+      'uc'            => function( $s, $e=''  ) { return strtoupper($s); },
+      'lc'            => function( $s, $e=''  ) { return strtolower($s); },
+      'lodash'        => function( $s, $e=''  ) { return $this->lodash($s); },
+      'striptags'     => function( $s, $e=''  ) { return strip_tags($s); },
+      'date'          => function( $s, $e=''  ) { return $s ? date_format( date_create( $s ), $this->date_format ) : ''; },
+      'enc'           => function( $s, $e=''  ) { return rawurlencode( $s ); },
+      'rand_enc'      => function( $s, $e=''  ) { return $this->random_url_encode( $s ); },
+      'integer'       => function( $s, $e=''  ) { return intval($s); },
+      'boolean'       => function( $s, $e=''  ) { return $s ? 'true' : 'false'; },
+      'shortcode'     => function( $s, $e=''  ) { return do_shortcode($s); },
+      'strip'         => function( $s, $e=''  ) { return preg_replace( '/\s*\b(height|width)=["\']\d+["\']/', '', do_shortcode( $s ) ); },
+      'spliturl'      => function( $s, $e=''  ) { return preg_replace( '/([.\/])(?![.\/])/','\1<wbr/>', HTMLentities($s) ); },
+      'rand_html'     => function( $s, $e=''  ) { return $this->random_html_entities( $s ); },
+      'html'          => function( $s, $e=''  ) { return HTMLentities($s); },
+      'bytes'         => function( $s, $e='-' ) {
          if( $e=='' ) {
            $e = $s > 8e8 ? 'G' : ($s > 8e5 ? 'M' : ( $s > 10000 ? 'K' : '' ));
          }
          return $e == 'G' ? sprintf( '0.1f GB', $s/1024/1024/1024 ) :
               ( $e == 'M' ? sprintf( '0.1f MB', $s/1024/1024 ) : 
               ( $e == 'K' ? sprintf( '%d KB', $s/1024 ) : $s.' bytes' )); },
-      'uc'        => function( $s, $e='' ) { return strtoupper($s); },
-      'lc'        => function( $s, $e='' ) { return strtolower($s); },
-      'raw'       => function( $s, $e='' ) { return $s; },
-      'date'      => function( $s, $e='' ) { return $s ? date_format( date_create( $s ), $this->date_format ) : ''; },
-      'enc'       => function( $s, $e='' ) { return rawurlencode( $s ); },
-      'rand_enc'  => function( $s, $e='' ) { return $this->random_url_encode( $s ); },
-      'integer'   => function( $s, $e='' ) { return intval($s); },
-      'boolean'   => function( $s, $e='' ) { return $s ? 'true' : 'false'; },
-      'shortcode' => function( $s, $e='' ) { return do_shortcode($s); },
-      'strip'     => function( $s, $e='' ) { return preg_replace( '/\s*\b(height|width)=["\']\d+["\']/', '', do_shortcode( $s ) ); },
-      'spliturl'  => function( $s, $e='' ) { return preg_replace( '/([.\/])(?![.\/])/','\1<wbr/>', HTMLentities($s) ); },
-      'rand_html' => function( $s, $e='' ) { return $this->random_html_entities( $s ); },
-      'html'      => function( $s, $e='' ) { return HTMLentities($s); },
+      'para'      => function( $s, $e='' ) { return preg_match( '/\s+<p>/', $s ) ? $s : ( preg_match( '/(.*?)<p>/', $s ) ?
+                                                    preg_replace( '/(.*?)<p>/', '<p>\1</p><p>', $s ) : "<p>$s</p>" ); },
       'email'     => function( $s, $e='' ) { // embeds an email link into the page!
         if($s=='') {
           return '';
