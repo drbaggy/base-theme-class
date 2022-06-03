@@ -441,6 +441,15 @@ class BaseThemeClass {
             ? ' in ("'.implode('","',$object_type).'")'
             : ' = "'.$object_type.'"'
             ;
+    $mapper_copy = [];
+    $mapper_map  = [];
+    foreach( $mapper as $k => $v ) {
+      if( substr($k,0,1)=='_' ) {
+        $mapper_copy[ substr( $k, 1 ) ] = $v;
+      } else {
+        $mapper_map[ $k ] = $v;
+      }     
+    }
     foreach( $wpdb->dbh->query(
       'select ID, post_type, post_modified, post_date
          from wp_posts
@@ -448,20 +457,21 @@ class BaseThemeClass {
         order by post_modified'
     )->fetch_all() as $p ) {
       // Get permalink for each post and to each post object...
-      $posts[ $p[0] ] = [ 'uid'    => $prefix==''?$p[0]:"$prefix-$p[0]",
-                          'url'    => get_permalink($p[0]),
-                          'type'   => $p[1],
-                          'update' => $p[2],
-                          'create' => $p[3],
-                        ];
+      $posts[ $p[0] ] = array_merge(
+         [ 'uid'    => $prefix==''?$p[0]:"$prefix-$p[0]",
+           'url'    => get_permalink($p[0]),
+           'type'   => $p[1],
+           'update' => $p[2],
+           'create' => $p[3],
+         ], $mapper_copy );
     }
     // Get selected meta data for each post..... and add it to post hash [ note we map to a consistent space ]
     foreach( $wpdb->dbh->query('
         select post_id,meta_key,meta_value
           from wp_postmeta where post_id in ('.implode(',',array_keys($posts)).') and
-               meta_key in ("'.implode('","',array_keys($mapper)).'")'
+               meta_key in ("'.implode('","',array_keys($mapper_map)).'")'
       )->fetch_all() as $r ) {
-        $posts[$r[0]][$mapper[$r[1]]] = $r[2];
+        $posts[$r[0]][$mapper_map[$r[1]]] = $r[2];
     }
     // Get image data for each of these posts (specifically URL of each image - possibly one of the "resized" versions)
     $image_hash = [];
