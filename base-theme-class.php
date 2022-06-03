@@ -42,7 +42,7 @@
  * Plugin Name: Website Base Theme Class
  * Plugin URI:  https://jamessmith.me.uk/base-theme-class/
  * Description: Support functions to: apply simple templates to acf pro data structures!; to fix annoying defaults in wordpress; to handle sanger publications [Sanger plugin]
- * Version:     0.5.5
+ * Version:     0.6.0
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
@@ -475,24 +475,25 @@ class BaseThemeClass {
     }
     // Get image data for each of these posts (specifically URL of each image - possibly one of the "resized" versions)
     $image_hash = [];
-    foreach(  $wpdb->dbh->query( '
-      select post_id,
-             group_concat(if(meta_key="_wp_attached_file",meta_value,NULL) separator "")       as file,
-             group_concat(if(meta_key="_wp_attachment_metadata",meta_value,NULL) separator "") as meta
-        from wp_postmeta where post_id in ( '.implode(',',
-      array_map(function($r) { return $r['image_id']; }, array_filter( $posts, function($r) { return isset( $r['image_id'] ) && $r['image_id'] !=''; } ) ) ).
-      '  )  group by post_id'
-    ) as $r ) {
-      $image_hash[$r['post_id']]=$r;
-    }
-    // Attach data to posts..
-    foreach( $posts as &$r ) {
-      if(isset($r['image_id']) && isset( $image_hash[$r['image_id']] ) ) {
-        $t = $image_hash[$r['image_id']];
-        if( isset( $t['meta'] ) && isset( $t['meta'][$image_size] ) ) {
-          $r['image_url'] = $base_url.'/'.$t['meta'][$image_size];
-        } elseif( isset( $t['file']) ) {
-          $r['image_url'] = $base_url.'/'.$t['file'];
+    $image_ids = array_map(function($r) { return $r['image_id']; }, array_filter( $posts, function($r) { return isset( $r['image_id'] ) && $r['image_id'] !=''; } ) );
+    if( sizeof( $image_ids ) ) {
+      foreach(  $wpdb->dbh->query( '
+        select post_id,
+               group_concat(if(meta_key="_wp_attached_file",meta_value,NULL) separator "")       as file,
+               group_concat(if(meta_key="_wp_attachment_metadata",meta_value,NULL) separator "") as meta
+          from wp_postmeta where post_id in ( '.implode(',', $image_ids ).'  )  group by post_id'
+      ) as $r ) {
+        $image_hash[$r['post_id']]=$r;
+      }
+      // Attach data to posts..
+      foreach( $posts as &$r ) {
+        if(isset($r['image_id']) && isset( $image_hash[$r['image_id']] ) ) {
+          $t = $image_hash[$r['image_id']];
+          if( isset( $t['meta'] ) && isset( $t['meta'][$image_size] ) ) {
+            $r['image_url'] = $base_url.'/'.$t['meta'][$image_size];
+          } elseif( isset( $t['file']) ) {
+            $r['image_url'] = $base_url.'/'.$t['file'];
+          }
         }
       }
     }
