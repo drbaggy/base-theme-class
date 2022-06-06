@@ -489,10 +489,12 @@ class BaseThemeClass {
       foreach( $posts as &$r ) {
         if(isset($r['image_id']) && isset( $image_hash[$r['image_id']] ) ) {
           $url   = $base_url.'/'.$t['file'];
-          $t     = $image_hash[$r['image_id']];
-          $tmeta = isset( $t['meta'] ) ? unserialize( $t['meta'] ) : [];
-          if( isset( $tmeta['sizes'] ) && isset( $tmeta['sizes'][$image_size] ) ) {
-            $url = preg_replace('/[^\/]+$/','',$url).$tmeta['sizes'][$image_size]['file'];
+          if( $image_size != '' ) { 
+            $t     = $image_hash[$r['image_id']];
+            $tmeta = isset( $t['meta'] ) ? unserialize( $t['meta'] ) : [];
+            if( isset( $tmeta['sizes'] ) && isset( $tmeta['sizes'][$image_size] ) ) {
+              $url = preg_replace('/[^\/]+$/','',$url).$tmeta['sizes'][$image_size]['file'];
+            }
           }
           $r['image_url'] = $url;
         }
