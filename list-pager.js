@@ -203,8 +203,9 @@ $(function(){
 
     // Nasty hack - we store filters in the URL so that we have a unique hash....
     // which we then use to re-populate the filters array when back is pressed...
-    if( $self.data('key') && document.location.hash.match(/^#\{/) ) {
-      var t = JSON.parse( decodeURI( document.location.hash.substr(1) ) );
+    if( $self.data('key') && document.location.hash.match(/^#\{/) || document.location.hash.match(/^#__OB__/) ) {
+      var t = decodeURI( document.location.hash.substr(1) );
+      t = JSON.parse( t.replace(/__OB__/g,'{').replace(/__CB__/g,'}').replace(/__QUOT__/g,'"') );
       if( t.hasOwnProperty( $self.data('key') ) ) {
         $.extend(filters,t[$self.data('key')]);
         $self.find('.multi-filter').each(function() {
