@@ -204,13 +204,12 @@ $(function(){
     // Nasty hack - we store filters in the URL so that we have a unique hash....
     // which we then use to re-populate the filters array when back is pressed...
     filters = update_from_hash( $self, filters );
-    $(window).on('hashchange',function() {
-      return;
+    $('body').on('click',"a[href^='"+document.location.pathname+"#']",function( X ) {
+      var t = $(x).attr('href').split(/#/);
+      document.location.hash = t[1];
       filters = update_from_hash( $self, filters );
       $self.data('filters',     filters);
       list_update_results( $self );
-      console.log('HERE');
-      console.log(document.location.hash);
     });
     // Initialize entry - by setting ptr to 0, setting results to empty list and filters to those defined!
     $self.data('filters',     filters);
