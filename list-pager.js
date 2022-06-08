@@ -205,6 +205,7 @@ $(function(){
     // which we then use to re-populate the filters array when back is pressed...
     filters = update_from_hash( $self, filters );
     $(window).on('hashchange',function() {
+      return;
       filters = update_from_hash( $self, filters );
       $self.data('filters',     filters);
       list_update_results( $self );
