@@ -203,6 +203,25 @@ $(function(){
 
     // Nasty hack - we store filters in the URL so that we have a unique hash....
     // which we then use to re-populate the filters array when back is pressed...
+    filters = update_from_hash( $self, filters );
+    $(window).on('hashchange',function() {
+      filters = update_from_hash( $self, filters );
+      console.log('HERE');
+      console.log(document.location.hash);
+    });
+    // Initialize entry - by setting ptr to 0, setting results to empty list and filters to those defined!
+    $self.data('filters',     filters);
+    $self.data('filter-info', filter_info);
+    $self.data('ptr',     0);
+    // Now fetch the data from the server - and once complete - remove the ajax loading message
+    // and display the results...
+    list_update_results( $self, 'reset' );            // Finally update what we see on the page....
+  });
+/* support functions for update_filters
+  hash_sorted - returns a sorted version of a hash based on values { returns as an array of k,v pairs }
+  trim_list - given the output of hash_sorted {e.g.} replaces all the values (except tne first)
+*/
+    function update_from_hash( $self, filters ) {
     if( $self.data('key') && document.location.hash.match(/^#\{/) || document.location.hash.match(/^#__OB__/) ) {
       var t = decodeURI( document.location.hash.substr(1) );
       t = JSON.parse( t.replace(/__OB__/g,'{').replace(/__CB__/g,'}').replace(/__QUOT__/g,'"') );
@@ -234,18 +253,8 @@ $(function(){
         });
       }
     }
-    // Initialize entry - by setting ptr to 0, setting results to empty list and filters to those defined!
-    $self.data('filters',     filters);
-    $self.data('filter-info', filter_info);
-    $self.data('ptr',     0);
-    // Now fetch the data from the server - and once complete - remove the ajax loading message
-    // and display the results...
-    list_update_results( $self, 'reset' );            // Finally update what we see on the page....
-  });
-/* support functions for update_filters
-  hash_sorted - returns a sorted version of a hash based on values { returns as an array of k,v pairs }
-  trim_list - given the output of hash_sorted {e.g.} replaces all the values (except tne first)
-*/
+    return filters;
+    }
     function hash_sorted( h ) {
       var tarr = [];
       $.each(h, function(k,v) {
