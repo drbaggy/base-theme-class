@@ -206,6 +206,8 @@ $(function(){
     filters = update_from_hash( $self, filters );
     $(window).on('hashchange',function() {
       filters = update_from_hash( $self, filters );
+      $self.data('filters',     filters);
+      list_update_results( $self );
       console.log('HERE');
       console.log(document.location.hash);
     });
