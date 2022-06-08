@@ -204,7 +204,7 @@ $(function(){
     // Nasty hack - we store filters in the URL so that we have a unique hash....
     // which we then use to re-populate the filters array when back is pressed...
     filters = update_from_hash( $self, filters );
-    $('body').on('click',"a[href^='"+document.location.pathname+"#']",function( X ) {
+    $('body').on('click',"a[href^='"+document.location.pathname+"#']",function( x ) {
       var t = $(x).attr('href').split(/#/);
       document.location.hash = t[1];
       filters = update_from_hash( $self, filters );
