@@ -2493,6 +2493,10 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
     if( is_array($entries) && sizeof($entries) > 0 ) {
       $munged = $this->fetch_meta( $entries, $keys );
       $t = array_map( function( $x ) use ($munged) {
+        if(!isset( $munged[$x->ID] ) ) {
+          $munged[$x->ID] = [];
+          error_log("NO META FOR POST ".$x->ID." (".$x->post_type.")");
+        }
         return array_merge( $munged[$x->ID], [
           'ID'           => $x->ID,
           'post_title'   => $x->post_title,
