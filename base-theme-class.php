@@ -458,11 +458,11 @@ class BaseThemeClass {
     )->fetch_all() as $p ) {
       // Get permalink for each post and to each post object...
       $posts[ $p[0] ] = array_merge(
-         [ 'uid'    => $prefix==''?$p[0]:"$prefix-$p[0]",
-           'url'    => get_permalink($p[0]),
-           'type'   => $p[1],
-           'update' => $p[2],
-           'create' => $p[3],
+         [ 'uid'         => $prefix==''?$p[0]:"$prefix-$p[0]",
+           'url'         => get_permalink($p[0]),
+           'post_type'   => $p[1],
+           'update'      => $p[2],
+           'create'      => $p[3],
          ], $mapper_copy );
     }
     // Get selected meta data for each post..... and add it to post hash [ note we map to a consistent space ]
