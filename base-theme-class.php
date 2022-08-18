@@ -428,6 +428,13 @@ class BaseThemeClass {
 
   private $tmp_data;
 
+  function  menu_fix( $html ) {
+    $html = str_replace( ['__OB__','__QUOT__','__CB__'],['{','&quot;','}'], $html );
+    error_log($html);
+    return $html;
+  }
+
+
   public function type_name( $code ) {
     return $this->custom_types[$code]['name'];
   }
@@ -542,7 +549,12 @@ class BaseThemeClass {
          ->fix_acf_fields()
          ->fix_reset_email()
          ->add_roles_to_profile()
+         ->nav_menu_fixup()
          ;
+  }
+  function nav_menu_fixup() {
+    add_filter('wp_nav_menu_items', [ $this, 'menu_fix' ] , 10, 2);
+    return $this;
   }
 
   function restrict_uploads( $arr ) {
