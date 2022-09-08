@@ -458,7 +458,7 @@ class BaseThemeClass {
       }     
     }
     foreach( $wpdb->dbh->query(
-      'select ID, post_type, post_modified, post_date
+      'select ID, post_type, post_modified, post_date, post_title, post_excerpt
          from wp_posts
         where post_status = "publish" and post_type'.$clause.'
         order by post_modified'
@@ -470,6 +470,8 @@ class BaseThemeClass {
            'post_type'   => $p[1],
            'update'      => $p[2],
            'create'      => $p[3],
+           'post_title'   => $p[4],
+           'post_excerpt' => $p[5],
          ], $mapper_copy );
     }
     // Get selected meta data for each post..... and add it to post hash [ note we map to a consistent space ]
@@ -3077,6 +3079,72 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
       $new .= sprintf( '&nbsp;<span title="... %s">...</span>', $title );
     }
     return $new;
+  }
+
+  function fix_up_filters( &$filters, $inc_num = 0 ) {
+    foreach( $filters as $k => $hash ) {
+      $filters[$k] = array_map( function($a,$b) use($inc_num) {
+        return [ 'val'=>$a, 'text' => $inc_num ? sprintf('%s (%d)', $a, $b) : $a ];
+      }, array_keys($filters[$k]), array_values($filters[$k]) );
+    }
+    $filter['rid'] = $self->sequence_id();
+  }
+
+  function get_title_map( $post_type ) {
+    $q = new WP_Query;
+    $posts = $q->query( [ 'posts_per_page' => -1, 'post_type' => $post_type ] );
+    return array_combine(
+      array_map( function($_){ return $_->ID;         }, $posts ),
+      array_map( function($_){ return $_->post_title; }, $posts )
+    );
+  }
+
+  function add_txt_filter( &$filters, &$entries, $keys ) {
+    foreach( $entries as &$e ) {
+      $e['text'] = strtolower( implode( ' ', array_unique( explode(' ',
+        preg_replace( ['/<.*?>/','/[^-\p{L}]+/u'],['',' '], html_entity_decode(
+          implode( ' ', array_map(
+            function( $_ ) use ( $entry ){ return $e[$_]; }, $keys
+          ) )
+        ) )
+      ))));
+    }
+  }
+
+  function add_letter_index( &$filters, &$entries, $key ) {
+    if( !isset($filters['letter']) ) {
+      $filters['letter']=['other'=>0];
+    }
+    foreach( range('a','z') as $_ ) {
+      $filters[$_] = 0;
+    }
+    foreach( $entries as &$e ) {
+      $letter = strtolower( substr( $e[$key], 0, 1 ) );
+      if( $letter < 'a' || $letter > 'z' ) {
+        $letter = 'other';
+      }
+    }
+  }
+
+  function add_filter( &$filters, &$entries, $key, $callback = '' ) {
+    if( !isset($filters[$key]) ) {
+      $filter[$key] = [];               // General index...
+    }
+    foreach( $entries as &$e ) {
+      if( is_callable( $callback ) ) {  // Create/update filter value
+        $callback($e);
+      }    
+      if( isset( $e[$key] ) ) {
+        $Q = is_array( $e[$key] ) ? $e[$key] : [$e[$key]];
+        foreach( $Q as $v ) {
+          if( !isset($filters[$key][$v]) ) {
+            $filters[$key][$v]=1;
+          } else {
+            $filters[$key][$v]++;
+          }
+        }
+      }
+    }
   }
 
 }
