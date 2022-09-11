@@ -125,6 +125,8 @@ define( 'QR_FIELDS', [
   'URL'     => [ 'type' => 'link' ],
 ]);
 
+require_once( 'lib/class-basethemeclass-filterer.php' );
+
 function no_of_words() {
   $w = get_theme_mod( 'card_words');
   if( $w <= 0 ) {
@@ -3067,4 +3069,20 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
     return $new;
   }
 
+// Filterer function to add filters...
+
+  function get_filterer( $entries ) {
+    return new BaseThemeClass\Filterer( $this, $entries );
+  }
+
+// Get a mapping from ID -> post_title for a given post type {only published ones}
+
+  function get_title_map( $post_type ) {
+    $q = new WP_Query;
+    $posts = $q->query( [ 'posts_per_page' => -1, 'post_type' => $post_type ] );
+    return array_combine(
+      array_map( function($_){ return $_->ID;         }, $posts ),
+      array_map( function($_){ return $_->post_title; }, $posts )
+    );
+  }
 }
