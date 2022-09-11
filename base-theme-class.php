@@ -472,11 +472,8 @@ class BaseThemeClass {
            'post_type'   => $p[1],
            'update'      => $p[2],
            'create'      => $p[3],
-<<<<<<< HEAD
-=======
            'post_title'   => $p[4],
            'post_excerpt' => $p[5],
->>>>>>> 70eac63a325515f7932676f36262364810f35afc
          ], $mapper_copy );
     }
     // Get selected meta data for each post..... and add it to post hash [ note we map to a consistent space ]
