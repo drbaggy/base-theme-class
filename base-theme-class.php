@@ -430,6 +430,13 @@ class BaseThemeClass {
 
   private $tmp_data;
 
+  function  menu_fix( $html ) {
+    $html = str_replace( ['__OB__','__QUOT__','__CB__'],['{','&quot;','}'], $html );
+    error_log($html);
+    return $html;
+  }
+
+
   public function type_name( $code ) {
     return $this->custom_types[$code]['name'];
   }
@@ -453,7 +460,7 @@ class BaseThemeClass {
       }     
     }
     foreach( $wpdb->dbh->query(
-      'select ID, post_type, post_modified, post_date
+      'select ID, post_type, post_modified, post_date, post_title, post_excerpt
          from wp_posts
         where post_status = "publish" and post_type'.$clause.'
         order by post_modified'
@@ -465,6 +472,11 @@ class BaseThemeClass {
            'post_type'   => $p[1],
            'update'      => $p[2],
            'create'      => $p[3],
+<<<<<<< HEAD
+=======
+           'post_title'   => $p[4],
+           'post_excerpt' => $p[5],
+>>>>>>> 70eac63a325515f7932676f36262364810f35afc
          ], $mapper_copy );
     }
     // Get selected meta data for each post..... and add it to post hash [ note we map to a consistent space ]
@@ -544,7 +556,12 @@ class BaseThemeClass {
          ->fix_acf_fields()
          ->fix_reset_email()
          ->add_roles_to_profile()
+         ->nav_menu_fixup()
          ;
+  }
+  function nav_menu_fixup() {
+    add_filter('wp_nav_menu_items', [ $this, 'menu_fix' ] , 10, 2);
+    return $this;
   }
 
   function restrict_uploads( $arr ) {
@@ -3074,8 +3091,6 @@ select group_concat(if(m.meta_key="slug",m.meta_value,"") separator "") code,
   function get_filterer( $entries ) {
     return new BaseThemeClass\Filterer( $this, $entries );
   }
-
-// Get a mapping from ID -> post_title for a given post type {only published ones}
 
   function get_title_map( $post_type ) {
     $q = new WP_Query;
