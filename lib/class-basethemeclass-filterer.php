@@ -214,9 +214,12 @@ class Filterer {
     return $this;
   }
 
-  function out() {
+  function _out() {
     return [ 'filter' => $this->filters, 'entries' => $this->entries ];
   }
+
+  function out( $flag ) {
+    return $this->finish_up( $flag )->out();
 }
   
 
