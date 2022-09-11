@@ -42,7 +42,7 @@
  * Plugin Name: Website Base Theme Class
  * Plugin URI:  https://jamessmith.me.uk/base-theme-class/
  * Description: Support functions to: apply simple templates to acf pro data structures!; to fix annoying defaults in wordpress; to handle sanger publications [Sanger plugin]
- * Version:     0.6.0
+ * Version:     0.7.0
  * Author:      James Smith
  * Author URI:  https://jamessmith.me.uk
  * Text Domain: base-theme-class-locale
