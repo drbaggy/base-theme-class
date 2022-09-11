@@ -220,6 +220,7 @@ class Filterer {
 
   function out( $flag ) {
     return $this->finish_up( $flag )->out();
+  }
 }
   
 
