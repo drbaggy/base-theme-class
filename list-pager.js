@@ -224,38 +224,39 @@ $(function(){
   trim_list - given the output of hash_sorted {e.g.} replaces all the values (except tne first)
 */
     function update_from_hash( $self, filters ) {
-    if( $self.data('key') && document.location.hash.match(/^#\{/) || document.location.hash.match(/^#__OB__/) ) {
-      var t = decodeURI( document.location.hash.substr(1) );
-      t = JSON.parse( t.replace(/__OB__/g,'{').replace(/__CB__/g,'}').replace(/__QUOT__/g,'"') );
-      if( t.hasOwnProperty( $self.data('key') ) ) {
-        $.extend(filters,t[$self.data('key')]);
-        $self.find('.multi-filter').each(function() {
-// Add code to check boxes and update filters!!
-          if( filters[ $(this).data('filter') ].hasOwnProperty( ''+$(this).val() ) ) {
-            $(this).prop('checked',true); $(this).closest('li').addClass('selected');
-          } else {
-            $(this).closest('li').removeClass('selected');
-          }
-        });
-        $self.find('.list-filter').each(function () {
-          $(this).val( filters[ $(this).data('filter') ]);
-          if( $(this).data('filter-bind') ) {
-            // We need to update elements...
-            var f = 0, v = filters[$(this).data('filter')], ns = $('#'+$(this).data('filter-bind')).find('li');
-            ns.each(function() {
-              if( $(this).text() === v ) {
-                f = 1;
-                $(this).addClass('active');
-              } else {
-                $(this).removeClass('active');
-              }
-            });
-            if( !f ) { ns.eq(0).addClass('active'); }
-          }
-        });
+    console.log("HERE"); console.log($self.data('key'));
+      if( $self.data('key') && document.location.hash.match(/^#\{/) || document.location.hash.match(/^#__OB__/) ) {
+        var t = decodeURI( document.location.hash.substr(1) );
+        t = JSON.parse( t.replace(/__OB__/g,'{').replace(/__CB__/g,'}').replace(/__QUOT__/g,'"') );
+        if( t.hasOwnProperty( $self.data('key') ) ) {
+          $.extend(filters,t[$self.data('key')]);
+          $self.find('.multi-filter').each(function() {
+  // Add code to check boxes and update filters!!
+            if( filters[ $(this).data('filter') ].hasOwnProperty( ''+$(this).val() ) ) {
+              $(this).prop('checked',true); $(this).closest('li').addClass('selected');
+            } else {
+              $(this).closest('li').removeClass('selected');
+            }
+          });
+          $self.find('.list-filter').each(function () {
+            $(this).val( filters[ $(this).data('filter') ]);
+            if( $(this).data('filter-bind') ) {
+              // We need to update elements...
+              var f = 0, v = filters[$(this).data('filter')], ns = $('#'+$(this).data('filter-bind')).find('li');
+              ns.each(function() {
+                if( $(this).text() === v ) {
+                  f = 1;
+                  $(this).addClass('active');
+                } else {
+                  $(this).removeClass('active');
+                }
+              });
+              if( !f ) { ns.eq(0).addClass('active'); }
+            }
+          });
+        }
       }
-    }
-    return filters;
+      return filters;
     }
     function hash_sorted( h ) {
       var tarr = [];
@@ -278,24 +279,19 @@ $(function(){
       return;
     }
     function update_history( ky, flt ) {
-      var t = {};
+      var t = decodeURI( document.location.hash ).substr(1);
+      var z = t != '' ? JSON.parse( t ) : {};
       var tf = JSON.parse(JSON.stringify(flt));
+      console.log( z );
       $.each(tf,function(k,v) {
         if(!v || v === '0') { delete tf[k]; }
       });
-      if(JSON.stringify(tf)==='{}') {
-        document.location.replace( '#' );
-        return;
-      }
-      t[ky] = tf;
-      var s = '#'+JSON.stringify(tf);
-      if( s === '#{"-":{}}' ) {
-        if( document.location.hash.match(/^#{/) ) {
-          document.location.replace( '#' );
-        }
+      if( Object.keys(tf).length ) {
+        z[ky] = tf;
       } else {
-        document.location.replace( s );
+        delete(z[ky]);
       }
+      document.location.replace( Object.keys(z).length ? '#'+JSON.stringify(z) : '#' );
     }
 
 /* list_update_results
