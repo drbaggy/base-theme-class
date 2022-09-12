@@ -218,8 +218,8 @@ class Filterer {
     return [ 'filter' => $this->filters, 'entries' => $this->entries ];
   }
 
-  function out( $flag ) {
-    return $this->finish_up( $flag )->out();
+  function out( $flag = 0 ) {
+    return $this->finish_up( $flag )->_out();
   }
 }
   
